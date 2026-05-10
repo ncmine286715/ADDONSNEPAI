@@ -1,0 +1,242 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+@import url("https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap");
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ink: var(--ink);
+  --color-paper: var(--paper);
+  --color-orange: var(--brand-orange);
+  --color-lime: var(--brand-lime);
+  --color-violet: var(--brand-violet);
+  --font-display: var(--font-display);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+:root {
+  --radius: 0.5rem;
+
+  /* Brutalist Pop palette */
+  --paper: oklch(0.97 0.01 80);          /* off-white #F6F2EA */
+  --ink: oklch(0.13 0 0);                /* near-black */
+  --brand-orange: oklch(0.72 0.22 42);   /* vibrant orange */
+  --brand-lime: oklch(0.92 0.18 110);    /* electric lime accent */
+  --brand-violet: oklch(0.55 0.25 295);  /* deep violet */
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--ink);
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --secondary: oklch(0.92 0.01 80);
+  --secondary-foreground: var(--ink);
+  --muted: oklch(0.92 0.01 80);
+  --muted-foreground: oklch(0.45 0.01 80);
+  --accent: var(--brand-orange);
+  --accent-foreground: var(--ink);
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(1 0 0);
+  --border: var(--ink);
+  --input: oklch(0.96 0.01 80);
+  --ring: var(--brand-orange);
+
+  --font-display: "Archivo Black", "Anton", system-ui, sans-serif;
+  --font-sans: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Brutalist hard shadow */
+  --shadow-brut: 6px 6px 0 0 var(--ink);
+  --shadow-brut-lg: 10px 10px 0 0 var(--ink);
+  --shadow-brut-xl: 14px 14px 0 0 var(--ink);
+  --shadow-brut-orange: 6px 6px 0 0 var(--brand-orange);
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html { background: var(--paper); }
+  body {
+    background:
+      radial-gradient(circle at 20% 0%, oklch(0.72 0.22 42 / 0.08) 0, transparent 35%),
+      radial-gradient(circle at 90% 100%, oklch(0.55 0.25 295 / 0.06) 0, transparent 40%),
+      var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    /* faint grid */
+    background-image:
+      linear-gradient(var(--ink) 1px, transparent 1px),
+      linear-gradient(90deg, var(--ink) 1px, transparent 1px);
+    background-size: 48px 48px, 48px 48px;
+    background-blend-mode: normal;
+    background-color: var(--paper);
+    background-position: 0 0;
+  }
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(oklch(0.13 0 0 / 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(0.13 0 0 / 0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    z-index: 0;
+  }
+  h1,h2,h3,h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    font-weight: 900;
+    line-height: 0.95;
+    text-transform: uppercase;
+  }
+  .font-mono, code, pre { font-family: var(--font-mono); }
+}
+
+/* ===== Brutalist primitives ===== */
+.brut {
+  background: var(--card);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-brut);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.brut-hover:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: var(--shadow-brut-lg);
+}
+.brut-press:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 0 var(--ink);
+}
+.brut-tag {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.25rem 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 0.35rem;
+}
+.brut-tag-accent { background: var(--brand-orange); color: var(--ink); }
+.brut-tag-lime { background: var(--brand-lime); color: var(--ink); }
+.brut-tag-violet { background: var(--brand-violet); color: var(--paper); }
+
+.text-orange { color: var(--brand-orange); }
+.text-violet { color: var(--brand-violet); }
+.bg-orange { background: var(--brand-orange); }
+.bg-lime { background: var(--brand-lime); }
+.bg-violet { background: var(--brand-violet); }
+.bg-paper { background: var(--paper); }
+.bg-ink { background: var(--ink); }
+
+/* ===== Animations ===== */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-1deg); }
+  50% { transform: rotate(1deg); }
+}
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 var(--brand-orange); }
+  70% { box-shadow: 0 0 0 18px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes float-up {
+  0% { transform: translate3d(var(--tx,0), 110vh, var(--tz,0)) rotate(var(--rz,0deg)) scale(var(--sc,1)); opacity: 0; }
+  10% { opacity: var(--op,0.7); }
+  90% { opacity: var(--op,0.7); }
+  100% { transform: translate3d(calc(var(--tx,0) + var(--dx,0px)), -20vh, var(--tz,0)) rotate(calc(var(--rz,0deg) + 30deg)) scale(var(--sc,1)); opacity: 0; }
+}
+
+.animate-fade-up { animation: fade-up 0.6s ease-out both; }
+.animate-marquee { animation: marquee 30s linear infinite; }
+.animate-wiggle { animation: wiggle 0.6s ease-in-out infinite; }
+.animate-pulse-ring { animation: pulse-ring 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.animate-float-up { animation: float-up linear infinite; }
+
+/* ===== Big download button ===== */
+.btn-download {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 0.85rem;
+  padding: 1.15rem 2.4rem;
+  font-family: var(--font-display);
+  font-size: 1.6rem; letter-spacing: 0.02em;
+  background: var(--brand-orange);
+  color: var(--ink);
+  border: 3px solid var(--ink);
+  border-radius: 0.6rem;
+  box-shadow: var(--shadow-brut-lg);
+  text-transform: uppercase;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  overflow: hidden;
+  isolation: isolate;
+}
+.btn-download:hover { transform: translate(-3px, -3px); box-shadow: var(--shadow-brut-xl); }
+.btn-download:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0 0 var(--ink); }
+.btn-download::after {
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2.2s linear infinite;
+  pointer-events: none;
+}
+.btn-download.mega {
+  font-size: 2rem; padding: 1.5rem 3rem;
+  animation: wiggle 1.2s ease-in-out infinite;
+}
+
+/* Card grid utility */
+.card-grid-bg {
+  background-image: radial-gradient(var(--ink) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+
+/* ticker / marquee strip */
+.marquee-strip {
+  display: flex;
+  white-space: nowrap;
+  width: max-content;
+}
+
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
