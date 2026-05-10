@@ -1,8 +1,17 @@
+// src/routes/admin.tsx
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
+import { createFileRoute } from "@tanstack/react-router";
 import { initializeApp, getApps } from "firebase/app";
 import {
   getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
 } from "firebase/auth";
+import {
+  Copy, Download as DownloadIcon, Plus, Trash2, CheckCircle2, AlertCircle,
+  Hash, Type, Tag as TagIcon, GitBranch, User, Calendar, Star, TrendingUp,
+  Image as ImageIcon, Link as LinkIcon, FileText, Youtube, Wrench, Eye,
+  Settings, Loader2, Bot, Globe, Send, ShieldAlert,
+} from "lucide-react";
+import { Header } from "@/components/Header";
 
 // ─── Firebase ───────────────────────────────────────────────────────────────────
 const FB_CONFIG = {
@@ -15,30 +24,30 @@ const FB_CONFIG = {
   appId: "1:877653857210:web:13cbd8a9d58d611000c383",
   measurementId: "G-YG2BXTLYJJ",
 };
-const fbApp  = getApps().length ? getApps()[0] : initializeApp(FB_CONFIG);
+const fbApp = getApps().length ? getApps()[0] : initializeApp(FB_CONFIG);
 const fbAuth = getAuth(fbApp);
 
 // ─── GitHub (token ofuscado em partes) ─────────────────────────────────────────
 const GH_OWNER = "ncmine286715";
-const GH_REPO  = "ADDONSNEPAI";
-const GH_PATH  = "src/data/addons.json";
+const GH_REPO = "ADDONSNEPAI";
+const GH_PATH = "src/data/addons.json";
 const _tk = ["Z2hwXzNkamY5ZjVTTU1vazZ", "OcHBPcmxsV3JUdXVGbVN5ODRA", "YU0zSzM="];
 const GH_TOKEN = () => atob(_tk.join("").replace("@", ""));
 
 // ─── NVIDIA NIM ─────────────────────────────────────────────────────────────────
-const NV_BASE  = "https://integrate.api.nvidia.com/v1";
+const NV_BASE = "https://integrate.api.nvidia.com/v1";
 const NV_MODEL = "nvidia/llama-3.1-nemotron-ultra-253b-v1";
 
 // ─── CORS proxies fallback ───────────────────────────────────────────────────────
 const PROXIES = [
-  (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
-  (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-  (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+  (u: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+  (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  (u: string) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
 ];
 
-const DISCORD_KEY      = "admin_discord_webhook";
+const DISCORD_KEY = "admin_discord_webhook";
 const DISCORD_SITE_KEY = "admin_discord_site_url";
-const NV_KEY_LS        = "admin_nv_key";
+const NV_KEY_LS = "admin_nv_key";
 
 const empty = {
   id: "", title: "", category: "ncmine", version: "1.0.0",
@@ -49,32 +58,40 @@ const empty = {
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
-const slugify = (s) =>
+const slugify = (s: string) =>
   s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-   .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
-function draftToAddon(d) {
-  const rating    = Number(d.rating);
+function draftToAddon(d: typeof empty) {
+  const rating = Number(d.rating);
   const downloads = Number(d.downloads);
-  const errors    = {};
-  if (!d.title)       errors.title       = "Obrigatório";
-  if (!d.author)      errors.author      = "Obrigatório";
-  if (!d.image)       errors.image       = "Obrigatório";
-  if (!d.short)       errors.short       = "Obrigatório";
+  const errors: Record<string, string> = {};
+  if (!d.title) errors.title = "Obrigatório";
+  if (!d.author) errors.author = "Obrigatório";
+  if (!d.image) errors.image = "Obrigatório";
+  if (!d.short) errors.short = "Obrigatório";
   if (!d.description) errors.description = "Obrigatório";
   if (!d.downloadUrl) errors.downloadUrl = "Obrigatório";
-  if (!d.category)    errors.category    = "Obrigatório";
+  if (!d.category) errors.category = "Obrigatório";
   if (isNaN(rating) || rating < 0 || rating > 5) errors.rating = "0 a 5";
-  if (isNaN(downloads) || downloads < 0)          errors.downloads = "≥ 0";
+  if (isNaN(downloads) || downloads < 0) errors.downloads = "≥ 0";
   if (Object.keys(errors).length) return { ok: false, errors };
   return {
     ok: true,
     data: {
-      id: d.id || slugify(d.title), title: d.title, category: d.category,
-      version: d.version, rating, downloads, date: d.date, image: d.image,
+      id: d.id || slugify(d.title),
+      title: d.title,
+      category: d.category,
+      version: d.version,
+      rating,
+      downloads,
+      date: d.date,
+      image: d.image,
       tags: d.tagsRaw.split(",").map((t) => t.trim()).filter(Boolean),
-      short: d.short, description: d.description,
-      downloadUrl: d.downloadUrl, author: d.author,
+      short: d.short,
+      description: d.description,
+      downloadUrl: d.downloadUrl,
+      author: d.author,
       ...(d.youtubeId ? { youtubeId: d.youtubeId } : {}),
     },
   };
@@ -94,7 +111,7 @@ async function ghGet() {
   };
 }
 
-async function ghPush(content, sha, msg = "chore: atualiza addons.json via painel") {
+async function ghPush(content: any, sha: string, msg = "chore: atualiza addons.json via painel") {
   const res = await fetch(
     `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${GH_PATH}`,
     {
@@ -114,7 +131,7 @@ async function ghPush(content, sha, msg = "chore: atualiza addons.json via paine
 }
 
 // ─── Extração: NVIDIA NIM ────────────────────────────────────────────────────────
-async function extractViaNvidia(url, apiKey) {
+async function extractViaNvidia(url: string, apiKey: string) {
   const res = await fetch(`${NV_BASE}/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
@@ -146,7 +163,7 @@ async function extractViaNvidia(url, apiKey) {
 }
 
 // ─── Extração: Proxy CORS ────────────────────────────────────────────────────────
-async function extractViaProxy(url) {
+async function extractViaProxy(url: string) {
   let html = "";
   for (const proxy of PROXIES) {
     try {
@@ -159,51 +176,54 @@ async function extractViaProxy(url) {
   }
   if (!html) throw new Error("Todos os proxies falharam. Use NVIDIA NIM ou preencha manualmente.");
   const doc = new DOMParser().parseFromString(html, "text/html");
-  const gm  = (...attrs) => {
+  const gm = (...attrs: string[]) => {
     for (const a of attrs) {
       const v = doc.querySelector(`meta[property="${a}"]`)?.getAttribute("content")
-             || doc.querySelector(`meta[name="${a}"]`)?.getAttribute("content") || "";
+        || doc.querySelector(`meta[name="${a}"]`)?.getAttribute("content") || "";
       if (v.trim()) return v.trim();
     }
     return "";
   };
-  const title = gm("og:title","twitter:title") || doc.title.replace(/[-|–].+$/, "").trim();
-  const image = gm("og:image","twitter:image");
-  const short = gm("og:description","twitter:description","description").slice(0, 140);
+  const title = gm("og:title", "twitter:title") || doc.title.replace(/[-|–].+$/, "").trim();
+  const image = gm("og:image", "twitter:image");
+  const short = gm("og:description", "twitter:description", "description").slice(0, 140);
   const author = doc.querySelector(".author-name,.creator a,.post-author a,[rel='author'],.author,.username")
-                    ?.textContent?.trim() || gm("author");
-  const kw = gm("keywords","og:keywords");
+    ?.textContent?.trim() || gm("author");
+  const kw = gm("keywords", "og:keywords");
   const pageTags = Array.from(doc.querySelectorAll(".tag,.tag-label,.tags a"))
-                       .map(el => el.textContent?.trim() ?? "").filter(Boolean);
-  const tagsRaw = [...new Set([...kw.split(/[,;]+/).map(t=>t.trim()).filter(Boolean),...pageTags])].slice(0,8).join(", ");
+    .map(el => el.textContent?.trim() ?? "").filter(Boolean);
+  const tagsRaw = [...new Set([...kw.split(/[,;]+/).map(t => t.trim()).filter(Boolean), ...pageTags])].slice(0, 8).join(", ");
   const description = doc.querySelector(".post-content,.entry-content,.content,.description,article .body")
-                         ?.textContent?.trim() || short;
-  const dlSels = ['a[href*="mediafire"]','a[href*="drive.google"]','a[href*=".mcaddon"]','a[href*=".mcpack"]','a[class*="download"]'];
+    ?.textContent?.trim() || short;
+  const dlSels = ['a[href*="mediafire"]', 'a[href*="drive.google"]', 'a[href*=".mcaddon"]', 'a[href*=".mcpack"]', 'a[class*="download"]'];
   let downloadUrl = "";
   for (const sel of dlSels) {
     const href = doc.querySelector(sel)?.getAttribute("href") ?? "";
-    if (href && !href.startsWith("#")) { try { downloadUrl = new URL(href, url).href; } catch { downloadUrl = href; } break; }
+    if (href && !href.startsWith("#")) {
+      try { downloadUrl = new URL(href, url).href; } catch { downloadUrl = href; }
+      break;
+    }
   }
   let youtubeId = "";
   for (const iframe of doc.querySelectorAll("iframe[src*='youtube']")) {
     const m = (iframe.getAttribute("src") ?? "").match(/embed\/([a-zA-Z0-9_-]{11})/);
     if (m) { youtubeId = m[1]; break; }
   }
-  const r = {};
-  if (title)       r.title       = title;
-  if (author)      r.author      = author;
-  if (short)       r.short       = short;
+  const r: any = {};
+  if (title) r.title = title;
+  if (author) r.author = author;
+  if (short) r.short = short;
   if (description) r.description = description;
-  if (tagsRaw)     r.tagsRaw     = tagsRaw;
-  if (image)       r.image       = image;
+  if (tagsRaw) r.tagsRaw = tagsRaw;
+  if (image) r.image = image;
   if (downloadUrl) r.downloadUrl = downloadUrl;
-  if (youtubeId)   r.youtubeId   = youtubeId;
-  if (title)       r.id          = slugify(title);
+  if (youtubeId) r.youtubeId = youtubeId;
+  if (title) r.id = slugify(title);
   return r;
 }
 
 // ─── Discord ──────────────────────────────────────────────────────────────────────
-async function publishToDiscord(webhookUrl, addon, siteUrl) {
+async function publishToDiscord(webhookUrl: string, addon: any, siteUrl: string) {
   const addonUrl = `${siteUrl}/addon/${addon.id}`;
   const res = await fetch(webhookUrl, {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -215,17 +235,17 @@ async function publishToDiscord(webhookUrl, addon, siteUrl) {
         url: addonUrl, color: 0xF97316,
         thumbnail: { url: addon.image },
         fields: [
-          { name: "👤 Autor",     value: addon.author   || "—", inline: true },
+          { name: "👤 Autor", value: addon.author || "—", inline: true },
           { name: "📁 Categoria", value: addon.category || "—", inline: true },
-          { name: "🔖 Versão",    value: `v${addon.version}`,   inline: true },
-          { name: "⭐ Nota",      value: `${Number(addon.rating).toFixed(1)}/5`, inline: true },
-          { name: "📅 Data",      value: new Date(addon.date).toLocaleDateString("pt-BR"), inline: true },
+          { name: "🔖 Versão", value: `v${addon.version}`, inline: true },
+          { name: "⭐ Nota", value: `${Number(addon.rating).toFixed(1)}/5`, inline: true },
+          { name: "📅 Data", value: new Date(addon.date).toLocaleDateString("pt-BR"), inline: true },
           ...(addon.tags?.length ? [{ name: "🏷️ Tags", value: addon.tags.join(" · ") }] : []),
         ],
         footer: { text: "Mine Addons News" },
         timestamp: new Date().toISOString(),
       }],
-      components: [{ type:1, components:[{ type:2, style:5, label:"Ver Add-on", emoji:{name:"🔗"}, url:addonUrl }] }],
+      components: [{ type: 1, components: [{ type: 2, style: 5, label: "Ver Add-on", emoji: { name: "🔗" }, url: addonUrl }] }],
     }),
   });
   if (!res.ok) throw new Error(`Discord: ${res.status}`);
@@ -233,71 +253,22 @@ async function publishToDiscord(webhookUrl, addon, siteUrl) {
 
 // ─── Toast hook ───────────────────────────────────────────────────────────────────
 function useToasts() {
-  const [toasts, set] = useState([]);
+  const [toasts, set] = useState<{ id: number; type: string; text: string }[]>([]);
   const n = useRef(0);
-  const push = useCallback((type, text) => {
+  const push = useCallback((type: string, text: string) => {
     const id = ++n.current;
     set(p => [...p, { id, type, text }]);
     setTimeout(() => set(p => p.filter(t => t.id !== id)), 4500);
   }, []);
-  return { toasts, ok: t => push("ok",t), err: t => push("err",t), info: t => push("info",t) };
+  return { toasts, ok: (t: string) => push("ok", t), err: (t: string) => push("err", t), info: (t: string) => push("info", t) };
 }
 
-// ─── Design tokens ───────────────────────────────────────────────────────────────
-const mono = "'IBM Plex Mono','Courier New',monospace";
-const ink  = "#0a0a0a";
-const btn  = (bg="#fff", fg=ink, full=false) => ({
-  display:"inline-flex", alignItems:"center", justifyContent: full?"center":"flex-start", gap:7,
-  height:42, padding:"0 18px",
-  background:bg, color:fg, border:`2px solid ${ink}`,
-  boxShadow:`3px 3px 0 ${ink}`,
-  fontFamily:mono, fontWeight:700, fontSize:11,
-  letterSpacing:"0.08em", textTransform:"uppercase",
-  cursor:"pointer", whiteSpace:"nowrap",
-  ...(full ? { width:"100%" } : {}),
-});
-const inp = (hasErr=false) => ({
-  width:"100%", height:42, padding:"0 14px",
-  border:`2px solid ${hasErr?"#e11d48":ink}`,
-  background:"#f5f4f1", fontFamily:mono, fontSize:13,
-  outline:"none", boxSizing:"border-box",
-});
-const card = (bg="#fff", shadow=ink) => ({
-  background:bg, border:`2px solid ${ink}`,
-  boxShadow:`4px 4px 0 ${shadow}`,
-  padding:"1.25rem 1.5rem", marginBottom:"1.25rem",
-});
-const lbl = {
-  display:"block", fontSize:10, fontWeight:700,
-  letterSpacing:"0.12em", textTransform:"uppercase", color:"#444", marginBottom:3,
-};
-const tag = (bg="#fff") => ({
-  display:"inline-flex", alignItems:"center", gap:4,
-  padding:"2px 8px", background:bg, border:`1.5px solid ${ink}`,
-  fontSize:9, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase",
-});
-
-// ─── Sub-components ───────────────────────────────────────────────────────────────
-
-function Field({ label, value, onChange, type="text", hint, error, full, rows }) {
-  return (
-    <div style={{ gridColumn: full ? "1 / -1" : undefined }}>
-      <label style={lbl}>{label}</label>
-      {rows
-        ? <textarea value={value} onChange={e=>onChange(e.target.value)} rows={rows}
-            style={{ ...inp(!!error), height:"auto", padding:"10px 14px", resize:"vertical", width:"100%", fontFamily:mono }} />
-        : <input type={type} value={value} onChange={e=>onChange(e.target.value)} style={inp(!!error)} />}
-      {error && <p style={{ fontSize:11, color:"#e11d48", marginTop:3, fontFamily:mono }}>⚠ {error}</p>}
-      {hint && !error && <p style={{ fontSize:10, color:"#888", marginTop:3 }}>{hint}</p>}
-    </div>
-  );
-}
-
-function UrlExtractor({ nvKey, onExtracted, onError }) {
-  const [url, setUrl]     = useState("");
-  const [mode, setMode]   = useState("nvidia");
-  const [busy, setBusy]   = useState(false);
-  const [step, setStep]   = useState("");
+// ─── Sub-componentes ──────────────────────────────────────────────────────────────
+function UrlExtractor({ nvKey, onExtracted, onError }: { nvKey: string; onExtracted: (data: any) => void; onError: (msg: string) => void }) {
+  const [url, setUrl] = useState("");
+  const [mode, setMode] = useState<"nvidia" | "proxy">("nvidia");
+  const [busy, setBusy] = useState(false);
+  const [step, setStep] = useState("");
 
   const handle = async () => {
     const t = url.trim(); if (!t) return;
@@ -306,7 +277,7 @@ function UrlExtractor({ nvKey, onExtracted, onError }) {
       let data;
       if (mode === "nvidia") {
         if (!nvKey) throw new Error("Configure a NVIDIA API Key nas ⚙️ Configurações.");
-        setStep("Conectando ao NVIDIA NIM (Llama 3.1 Nemotron)...");
+        setStep("Conectando ao NVIDIA NIM...");
         data = await extractViaNvidia(t, nvKey);
       } else {
         setStep("Buscando via proxy CORS gratuito...");
@@ -314,102 +285,88 @@ function UrlExtractor({ nvKey, onExtracted, onError }) {
       }
       onExtracted(data);
       setUrl(""); setStep("");
-    } catch (e) {
+    } catch (e: any) {
       onError(e.message); setStep("");
     }
     setBusy(false);
   };
 
   return (
-    <div style={{ background:"#f0fdf4", border:`2px solid ${ink}`, padding:"1rem 1.25rem", marginBottom:"1.25rem" }}>
-      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8, flexWrap:"wrap" }}>
-        <span style={{ fontFamily:mono, fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" }}>
-          ✨ Preencher por URL
+    <div className="bg-lime/10 border-2 border-ink p-4 mb-4">
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
+        <span className="text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-1.5">
+          <Bot className="size-3.5" /> Preencher por URL
         </span>
-        <div style={{ marginLeft:"auto", display:"flex", gap:6 }}>
-          {[["nvidia","🟢 NVIDIA NIM"],["proxy","🌐 Proxy CORS"]].map(([m,label]) => (
-            <button key={m} onClick={()=>setMode(m)} style={{
-              ...btn(mode===m?ink:"#fff", mode===m?"#f97316":ink),
-              height:28, padding:"0 10px", fontSize:9,
-            }}>{label}</button>
-          ))}
+        <div className="ml-auto flex gap-1.5">
+          <button onClick={() => setMode("nvidia")} className={`px-2 py-1 text-[10px] font-bold uppercase border-2 border-ink rounded ${mode === "nvidia" ? "bg-ink text-orange" : "bg-paper"} brut-press`}>
+            🟢 NVIDIA
+          </button>
+          <button onClick={() => setMode("proxy")} className={`px-2 py-1 text-[10px] font-bold uppercase border-2 border-ink rounded ${mode === "proxy" ? "bg-ink text-orange" : "bg-paper"} brut-press`}>
+            🌐 Proxy
+          </button>
         </div>
       </div>
-
       {mode === "nvidia" && !nvKey && (
-        <div style={{ background:"#fef3c7", border:`1.5px solid #d97706`, padding:"8px 12px", marginBottom:8 }}>
-          <p style={{ fontSize:11, fontFamily:mono, color:"#92400e", margin:0 }}>
-            ⚠ Configure a NVIDIA API Key em ⚙️ Configurações (grátis em{" "}
-            <a href="https://build.nvidia.com" target="_blank" rel="noreferrer" style={{color:"#1d4ed8"}}>build.nvidia.com</a>
-            ).
-          </p>
+        <div className="bg-yellow/10 border border-yellow/50 p-2 mb-2 text-xs">
+          ⚠ Configure a NVIDIA API Key nas Configurações (grátis em{" "}
+          <a href="https://build.nvidia.com" target="_blank" rel="noreferrer" className="text-blue-600 underline">build.nvidia.com</a>).
         </div>
       )}
       {mode === "proxy" && (
-        <p style={{ fontSize:11, fontFamily:mono, color:"#555", marginBottom:8 }}>
-          Usa proxies públicos gratuitos — pode falhar em alguns sites. NVIDIA NIM é mais confiável.
-        </p>
+        <p className="text-[10px] text-muted-foreground mb-2">Usa proxies públicos gratuitos — pode falhar em alguns sites.</p>
       )}
-
-      <div style={{ display:"flex", gap:8 }}>
-        <input value={url} onChange={e=>setUrl(e.target.value)}
-          onKeyDown={e=>e.key==="Enter"&&!busy&&handle()}
-          placeholder="Cole o link: MCPEDL, ModBay, Planet Minecraft..."
-          style={{ ...inp(), flex:1 }} disabled={busy} />
-        <button onClick={handle} disabled={busy||!url.trim()}
-          style={{ ...btn("#7c3aed","#fff"), opacity:busy||!url.trim()?0.5:1 }}>
-          {busy?"⏳ Extraindo...":"✨ Extrair"}
+      <div className="flex gap-2">
+        <input value={url} onChange={e => setUrl(e.target.value)} placeholder="Cole o link: MCPEDL, ModBay..."
+          className="flex-1 h-10 px-3 rounded-md bg-input border-2 border-ink text-sm" disabled={busy}
+          onKeyDown={e => e.key === "Enter" && !busy && handle()} />
+        <button onClick={handle} disabled={busy || !url.trim()}
+          className={`px-4 h-10 bg-purple-600 text-white border-2 border-ink rounded-md font-bold uppercase text-xs brut-press ${busy || !url.trim() ? "opacity-50" : ""}`}>
+          {busy ? <Loader2 className="size-4 animate-spin" /> : "Extrair"}
         </button>
       </div>
-      {step && <p style={{ fontSize:11, color:"#6b21a8", marginTop:8, fontFamily:mono }}>⟳ {step}</p>}
+      {step && <p className="text-xs text-purple-700 mt-2 animate-pulse">{step}</p>}
     </div>
   );
 }
 
-function SettingsPanel({ nvKey, setNvKey, webhook, setWebhook, siteUrl, setSiteUrl, onTestDiscord }) {
+function SettingsPanel({ nvKey, setNvKey, webhook, setWebhook, siteUrl, setSiteUrl, onTestDiscord }: any) {
   const [open, setOpen] = useState(false);
   return (
-    <div style={card("#fffbeb")}>
-      <button onClick={()=>setOpen(p=>!p)}
-        style={{ all:"unset", cursor:"pointer", display:"flex", alignItems:"center", gap:10, width:"100%", fontFamily:mono }}>
-        <span>⚙️</span>
-        <span style={{ fontSize:12, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase" }}>Configurações</span>
-        <span style={{ marginLeft:"auto" }}>{open?"▲":"▼"}</span>
+    <div className="brut bg-paper p-4 mb-6">
+      <button onClick={() => setOpen(p => !p)} className="w-full flex items-center gap-3 font-bold uppercase tracking-wider text-sm">
+        <Settings className="size-5" /> Configurações <span className="ml-auto">{open ? "▲" : "▼"}</span>
       </button>
       {open && (
-        <div style={{ marginTop:16, borderTop:`1.5px dashed ${ink}`, paddingTop:16 }}>
-          <label style={lbl}>🟢 NVIDIA NIM — API Key (gratuita)</label>
-          <p style={{ fontSize:11, color:"#555", fontFamily:mono, marginBottom:6 }}>
-            1. Acesse <a href="https://build.nvidia.com/nvidia/llama-3_1-nemotron-ultra-253b-v1" target="_blank" rel="noreferrer" style={{color:"#1d4ed8"}}>build.nvidia.com</a>
-            {" "}→ 2. Crie conta grátis → 3. Clique "Get API Key" → 4. Cole abaixo
-          </p>
-          <div style={{ display:"flex", gap:8, marginBottom:20 }}>
-            <input type="password" value={nvKey}
-              onChange={e=>{ setNvKey(e.target.value); localStorage.setItem(NV_KEY_LS, e.target.value); }}
-              placeholder="nvapi-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-              style={{ ...inp(), flex:1 }} />
-            {nvKey && <span style={tag("#d1fae5")}>✓ Salva</span>}
+        <div className="mt-4 border-t-2 border-dashed border-ink pt-4 space-y-4">
+          <div>
+            <label className="text-[10px] font-mono font-bold uppercase tracking-widest flex items-center gap-1.5">
+              <Bot className="size-3.5" /> NVIDIA NIM API Key
+            </label>
+            <div className="flex gap-2 mt-1">
+              <input type="password" value={nvKey} onChange={e => { setNvKey(e.target.value); localStorage.setItem(NV_KEY_LS, e.target.value); }}
+                className="flex-1 h-10 px-3 rounded-md bg-input border-2 border-ink text-sm" placeholder="nvapi-..." />
+              {nvKey && <span className="brut-tag brut-tag-lime text-[10px]">✓ Salva</span>}
+            </div>
           </div>
-
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
+          <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label style={lbl}>🔔 Discord Webhook URL</label>
-              <input type="url" value={webhook}
-                onChange={e=>{ setWebhook(e.target.value); localStorage.setItem(DISCORD_KEY, e.target.value); }}
-                placeholder="https://discord.com/api/webhooks/..."
-                style={inp()} />
+              <label className="text-[10px] font-mono font-bold uppercase tracking-widest flex items-center gap-1.5">
+                <Send className="size-3.5" /> Discord Webhook
+              </label>
+              <input type="url" value={webhook} onChange={e => { setWebhook(e.target.value); localStorage.setItem(DISCORD_KEY, e.target.value); }}
+                className="w-full h-10 px-3 rounded-md bg-input border-2 border-ink text-sm mt-1" placeholder="https://discord.com/api/webhooks/..." />
             </div>
             <div>
-              <label style={lbl}>🌐 URL do Site</label>
-              <input type="url" value={siteUrl}
-                onChange={e=>{ setSiteUrl(e.target.value); localStorage.setItem(DISCORD_SITE_KEY, e.target.value); }}
-                placeholder="https://mineaddonsnews.com"
-                style={inp()} />
+              <label className="text-[10px] font-mono font-bold uppercase tracking-widest flex items-center gap-1.5">
+                <Globe className="size-3.5" /> URL do Site
+              </label>
+              <input type="url" value={siteUrl} onChange={e => { setSiteUrl(e.target.value); localStorage.setItem(DISCORD_SITE_KEY, e.target.value); }}
+                className="w-full h-10 px-3 rounded-md bg-input border-2 border-ink text-sm mt-1" placeholder="https://mineaddonsnews.com" />
             </div>
           </div>
           {webhook && (
-            <button onClick={onTestDiscord} style={btn("#5865F2","#fff")}>
-              📨 Testar Webhook Discord
+            <button onClick={onTestDiscord} className="inline-flex items-center gap-2 px-4 h-10 bg-[#5865F2] text-white border-2 border-ink rounded-md font-bold uppercase text-xs brut-press">
+              <Send className="size-4" /> Testar Discord
             </button>
           )}
         </div>
@@ -418,139 +375,54 @@ function SettingsPanel({ nvKey, setNvKey, webhook, setWebhook, siteUrl, setSiteU
   );
 }
 
-function GithubPanel({ onLoad, onPush, loading, hasSha }) {
+function GithubPanel({ onLoad, onPush, loading, hasSha }: any) {
   const [open, setOpen] = useState(false);
   return (
-    <div style={card("#f0fdf4")}>
-      <button onClick={()=>setOpen(p=>!p)}
-        style={{ all:"unset", cursor:"pointer", display:"flex", alignItems:"center", gap:10, width:"100%", fontFamily:mono }}>
-        <span>⚙️</span>
-        <span style={{ fontSize:12, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase" }}>
-          GitHub — Editar addons.json direto
+    <div className="brut bg-lime/10 p-4 mb-6">
+      <button onClick={() => setOpen(p => !p)} className="w-full flex items-center gap-3 font-bold uppercase tracking-wider text-sm">
+        <FileText className="size-5" /> GitHub — Editar addons.json
+        <span className="ml-auto flex items-center gap-2">
+          <span className="brut-tag bg-lime-light text-[10px]">{GH_OWNER}/{GH_REPO}</span>
+          {open ? "▲" : "▼"}
         </span>
-        <span style={{ ...tag("#bbf7d0"), marginLeft:"auto" }}>{GH_OWNER}/{GH_REPO}</span>
-        <span style={{ marginLeft:8 }}>{open?"▲":"▼"}</span>
       </button>
       {open && (
-        <div style={{ marginTop:16, borderTop:`1.5px dashed ${ink}`, paddingTop:16 }}>
-          <p style={{ fontSize:12, color:"#555", fontFamily:mono, marginBottom:12 }}>
-            Fluxo: <strong>1</strong> Carregue → <strong>2</strong> Edite → <strong>3</strong> Salve. Sem copiar JSON.
-          </p>
-          <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
-            <button onClick={onLoad} disabled={loading} style={{ ...btn("#fff",ink), opacity:loading?0.5:1 }}>
-              {loading?"⏳ Carregando...":"📥 Carregar do GitHub"}
+        <div className="mt-4 border-t-2 border-dashed border-ink pt-4">
+          <p className="text-xs text-muted-foreground mb-3">Fluxo: <strong>1</strong> Carregue → <strong>2</strong> Edite → <strong>3</strong> Salve.</p>
+          <div className="flex flex-wrap gap-3">
+            <button onClick={onLoad} disabled={loading} className="inline-flex items-center gap-2 px-4 h-10 bg-paper border-2 border-ink rounded-md font-bold uppercase text-xs brut-press disabled:opacity-50">
+              {loading ? <Loader2 className="size-4 animate-spin" /> : null} Carregar do GitHub
             </button>
-            <button onClick={onPush} disabled={loading||!hasSha}
-              style={{ ...btn("#16a34a","#fff"), opacity:loading||!hasSha?0.4:1 }}
-              title={!hasSha?"Carregue primeiro":""}>
-              {loading?"⏳ Enviando...":"🚀 Salvar no GitHub"}
+            <button onClick={onPush} disabled={loading || !hasSha} className="inline-flex items-center gap-2 px-4 h-10 bg-lime border-2 border-ink rounded-md font-bold uppercase text-xs brut-press disabled:opacity-50" title={!hasSha ? "Carregue primeiro" : ""}>
+              {loading ? <Loader2 className="size-4 animate-spin" /> : null} Salvar no GitHub
             </button>
           </div>
-          {!hasSha && <p style={{ fontSize:11, color:"#888", fontFamily:mono, marginTop:8 }}>⚠ Carregue do GitHub antes de salvar.</p>}
+          {!hasSha && <p className="text-[10px] text-muted-foreground mt-2">⚠ Carregue do GitHub antes de salvar.</p>}
         </div>
       )}
     </div>
   );
 }
 
-function AddonCard({ draft, index, validation, isDupe, onUpdate, onRemove, onPublish, publishing, webhook, nvKey }) {
-  const errors = validation.ok ? {} : validation.errors;
-  const u = (p) => onUpdate(index, p);
-  const bc = isDupe ? "#e11d48" : (!validation.ok ? "#f97316" : ink);
-
-  return (
-    <div style={{ background:"#fff", border:`2px solid ${bc}`, boxShadow:`4px 4px 0 ${bc}`, padding:"1.25rem 1.5rem", marginBottom:"1.25rem" }}>
-      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:"1.25rem", flexWrap:"wrap" }}>
-        <span style={{ fontSize:22, fontWeight:700, fontFamily:mono }}>#{index+1}</span>
-        {validation.ok && !isDupe && <span style={tag("#d1fae5")}>✓ Válido</span>}
-        {isDupe && <span style={tag("#fee2e2")}>✗ ID duplicado</span>}
-        {!validation.ok && <span style={tag("#fee2e2")}>✗ {Object.keys(errors).length} erro(s)</span>}
-        <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
-          {validation.ok && !isDupe && webhook && (
-            <button onClick={()=>onPublish(index)} disabled={publishing!==null}
-              style={{ ...btn("#5865F2","#fff"), height:36, fontSize:10, opacity:publishing!==null?0.5:1 }}>
-              {publishing===index?"⏳":"📨"} Discord
-            </button>
-          )}
-          <button onClick={()=>onRemove(index)} style={{ ...btn("#fee2e2","#e11d48"), height:36, fontSize:10 }}>🗑</button>
-        </div>
-      </div>
-
-      <UrlExtractor
-        nvKey={nvKey}
-        onExtracted={data => u({ ...data, id: data.title ? slugify(data.title) : draft.id })}
-        onError={msg => alert(msg)}
-      />
-
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(210px, 1fr))", gap:"0.75rem 1rem" }}>
-        <Field label="Título *" value={draft.title} onChange={v=>u({title:v, id:draft.id||slugify(v)})} error={errors.title} />
-        <Field label="ID (slug)" value={draft.id} onChange={v=>u({id:v})} error={errors.id||(isDupe?"ID duplicado":undefined)} />
-        <Field label="Categoria *" value={draft.category} onChange={v=>u({category:v})} error={errors.category}
-          hint="ncmine · shaders · mobs · texturas · mapas · pvp · decoracao · utilitarios" />
-        <Field label="Versão" value={draft.version} onChange={v=>u({version:v})} />
-        <Field label="Autor *" value={draft.author} onChange={v=>u({author:v})} error={errors.author} />
-        <Field label="Data" type="date" value={draft.date} onChange={v=>u({date:v})} />
-        <Field label="Avaliação (0-5)" type="number" value={draft.rating} onChange={v=>u({rating:v})} error={errors.rating} />
-        <Field label="Downloads" type="number" value={draft.downloads} onChange={v=>u({downloads:v})} />
-        <Field label="URL da Imagem *" value={draft.image} onChange={v=>u({image:v})} error={errors.image} full />
-        <Field label="URL de Download *" value={draft.downloadUrl} onChange={v=>u({downloadUrl:v})} error={errors.downloadUrl} full />
-        <Field label="ID YouTube (opcional)" value={draft.youtubeId} onChange={v=>u({youtubeId:v})} hint="Ex: dQw4w9WgXcQ" full />
-        <Field label="Tags (vírgula)" value={draft.tagsRaw} onChange={v=>u({tagsRaw:v})} full />
-        <Field label="Resumo * (até 140 chars)" value={draft.short} onChange={v=>u({short:v})} error={errors.short} full />
-        <Field label="Descrição completa *" value={draft.description} onChange={v=>u({description:v})} error={errors.description} full rows={4} />
-      </div>
-
-      {draft.image && (
-        <div style={{ marginTop:"1rem" }}>
-          <span style={lbl}>Preview</span>
-          <img src={draft.image} alt="preview"
-            style={{ marginTop:6, height:80, border:`2px solid ${ink}`, objectFit:"cover" }}
-            onError={e=>(e.currentTarget.style.display="none")} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Toasts({ toasts }) {
-  if (!toasts.length) return null;
-  return (
-    <div style={{ position:"fixed", bottom:24, right:16, zIndex:9999, display:"flex", flexDirection:"column", gap:8, maxWidth:340 }}>
-      <style>{`@keyframes slideUp{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}`}</style>
-      {toasts.map(t=>(
-        <div key={t.id} style={{
-          display:"flex", alignItems:"center", gap:10, padding:"12px 16px",
-          border:`2px solid ${ink}`, boxShadow:`3px 3px 0 ${ink}`,
-          background: t.type==="ok"?"#d1fae5":t.type==="err"?"#fee2e2":"#fff",
-          fontFamily:mono, fontSize:12, fontWeight:700,
-          animation:"slideUp 0.2s ease",
-        }}>
-          {t.type==="ok"?"✓":t.type==="err"?"✗":"ℹ"} {t.text}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─── Login Screen ─────────────────────────────────────────────────────────────────
+// ─── Login Screen (Tailwind version) ─────────────────────────────────────────────
 function LoginScreen() {
   const [email, setEmail] = useState("");
-  const [pw,    setPw]    = useState("");
-  const [err,   setErr]   = useState("");
-  const [busy,  setBusy]  = useState(false);
+  const [pw, setPw] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const submit = async () => {
     if (!email || !pw) { setErr("Preencha e-mail e senha."); return; }
     setBusy(true); setErr("");
     try {
       await signInWithEmailAndPassword(fbAuth, email, pw);
-    } catch (e) {
-      const m = {
+    } catch (e: any) {
+      const m: Record<string, string> = {
         "auth/invalid-credential": "E-mail ou senha incorretos.",
-        "auth/user-not-found":     "Usuário não encontrado.",
-        "auth/wrong-password":     "Senha incorreta.",
-        "auth/too-many-requests":  "Muitas tentativas. Aguarde um momento.",
-        "auth/invalid-email":      "E-mail inválido.",
+        "auth/user-not-found": "Usuário não encontrado.",
+        "auth/wrong-password": "Senha incorreta.",
+        "auth/too-many-requests": "Muitas tentativas. Aguarde um momento.",
+        "auth/invalid-email": "E-mail inválido.",
       };
       setErr(m[e.code] || "Erro de autenticação. Tente novamente.");
     }
@@ -558,59 +430,46 @@ function LoginScreen() {
   };
 
   return (
-    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:ink }}>
-      <div style={{ background:"#fff", border:`3px solid ${ink}`, boxShadow:`10px 10px 0 #f97316`, padding:"3rem 2.5rem", width:390, maxWidth:"90vw" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:"0.5rem" }}>
-          <span style={{ fontSize:38 }}>🔒</span>
-          <h1 style={{ fontFamily:mono, fontWeight:700, fontSize:26, letterSpacing:"-1px", textTransform:"uppercase", margin:0 }}>
-            Painel Admin
-          </h1>
+    <div className="min-h-screen flex items-center justify-center bg-ink">
+      <div className="brut bg-paper p-10 max-w-sm w-full">
+        <div className="flex items-center gap-3 mb-4">
+          <ShieldAlert className="size-10 text-orange" />
+          <h1 className="font-display text-3xl tracking-tighter uppercase">Painel Admin</h1>
         </div>
-        <p style={{ color:"#888", fontSize:12, fontFamily:mono, marginBottom:"2rem" }}>
-          Mine Addons News — Firebase Authentication
-        </p>
-
-        <label style={lbl}>E-mail</label>
-        <input type="email" value={email}
-          onChange={e=>{ setEmail(e.target.value); setErr(""); }}
-          onKeyDown={e=>e.key==="Enter"&&submit()}
-          placeholder="seu@email.com"
-          style={{ ...inp(), marginBottom:12 }} />
-
-        <label style={lbl}>Senha</label>
-        <input type="password" value={pw}
-          onChange={e=>{ setPw(e.target.value); setErr(""); }}
-          onKeyDown={e=>e.key==="Enter"&&submit()}
-          placeholder="••••••••••••••••"
-          style={{ ...inp(!!err), marginBottom:4 }} />
-
-        {err && <p style={{ fontSize:11, color:"#e11d48", fontFamily:mono, marginBottom:8 }}>⚠ {err}</p>}
-
+        <p className="text-xs text-muted-foreground mb-6">Mine Addons News — Firebase Authentication</p>
+        <label className="text-[10px] font-mono font-bold uppercase tracking-widest">E-mail</label>
+        <input type="email" value={email} onChange={e => { setEmail(e.target.value); setErr(""); }}
+          className="w-full h-10 px-3 rounded-md bg-input border-2 border-ink text-sm mt-1 mb-3" placeholder="seu@email.com"
+          onKeyDown={e => e.key === "Enter" && submit()} />
+        <label className="text-[10px] font-mono font-bold uppercase tracking-widest">Senha</label>
+        <input type="password" value={pw} onChange={e => { setPw(e.target.value); setErr(""); }}
+          className={`w-full h-10 px-3 rounded-md bg-input border-2 text-sm mt-1 mb-1 ${err ? "border-destructive" : "border-ink"}`}
+          placeholder="••••••••••••" onKeyDown={e => e.key === "Enter" && submit()} />
+        {err && <p className="text-[10px] text-destructive mt-1 flex items-center gap-1"><AlertCircle className="size-3" /> {err}</p>}
         <button onClick={submit} disabled={busy}
-          style={{ ...btn(ink,"#f97316",true), marginTop:16, opacity:busy?0.6:1 }}>
+          className={`mt-4 w-full h-11 bg-ink text-orange border-2 border-ink rounded-md font-bold uppercase tracking-wider text-sm brut-press ${busy ? "opacity-60" : ""}`}
+          style={{ boxShadow: "4px 4px 0 0 var(--ink)" }}>
           {busy ? "Verificando..." : "Entrar →"}
         </button>
-
-        <p style={{ fontSize:10, color:"#bbb", fontFamily:mono, marginTop:16, textAlign:"center" }}>
-          Autenticado via Firebase · Somente usuários autorizados
-        </p>
+        <p className="text-[10px] text-muted-foreground mt-4 text-center">Autenticado via Firebase · Somente usuários autorizados</p>
       </div>
     </div>
   );
 }
 
-// ─── Main Admin ────────────────────────────────────────────────────────────────────
-export default function Admin() {
-  const [user,        setUser]        = useState(undefined); // undefined = ainda carregando
-  const [list,        setList]        = useState([{ ...empty }]);
-  const [output,      setOutput]      = useState("");
-  const [nvKey,       setNvKey]       = useState("");
-  const [webhook,     setWebhook]     = useState("");
-  const [siteUrl,     setSiteUrl]     = useState("");
-  const [publishing,  setPublishing]  = useState(null);
-  const [ghLoading,   setGhLoading]   = useState(false);
-  const [ghSha,       setGhSha]       = useState(null);
-  const { toasts, ok, err, info }     = useToasts();
+// ─── Admin Principal ──────────────────────────────────────────────────────────────
+function Admin() {
+  const [user, setUser] = useState<any>(undefined);
+  const [list, setList] = useState<typeof empty[]>([{ ...empty }]);
+  const [output, setOutput] = useState("");
+  const [csvOut, setCsvOut] = useState("");
+  const [nvKey, setNvKey] = useState("");
+  const [webhook, setWebhook] = useState("");
+  const [siteUrl, setSiteUrl] = useState("");
+  const [publishing, setPublishing] = useState<number | null>(null);
+  const [ghLoading, setGhLoading] = useState(false);
+  const [ghSha, setGhSha] = useState<string | null>(null);
+  const { toasts, ok, err, info } = useToasts();
 
   useEffect(() => {
     const unsub = onAuthStateChanged(fbAuth, (u) => setUser(u ?? null));
@@ -618,25 +477,34 @@ export default function Admin() {
   }, []);
 
   useEffect(() => {
-    setNvKey(localStorage.getItem(NV_KEY_LS)          ?? "");
-    setWebhook(localStorage.getItem(DISCORD_KEY)      ?? "");
+    setNvKey(localStorage.getItem(NV_KEY_LS) ?? "");
+    setWebhook(localStorage.getItem(DISCORD_KEY) ?? "");
     setSiteUrl(localStorage.getItem(DISCORD_SITE_KEY) ?? "");
   }, []);
 
   const validations = useMemo(() => list.map(draftToAddon), [list]);
-  const dupes       = useMemo(() => {
-    const seen = new Map();
-    validations.forEach((v,i) => { if(v.ok){ const a=seen.get(v.data.id)??[]; a.push(i); seen.set(v.data.id,a); } });
-    const c = new Set();
-    seen.forEach(idxs => { if(idxs.length>1) idxs.forEach(i=>c.add(i)); });
+  const dupes = useMemo(() => {
+    const seen = new Map<string, number[]>();
+    validations.forEach((v, i) => {
+      if (v.ok) {
+        const arr = seen.get(v.data.id) ?? [];
+        arr.push(i); seen.set(v.data.id, arr);
+      }
+    });
+    const c = new Set<number>();
+    seen.forEach(idxs => { if (idxs.length > 1) idxs.forEach(i => c.add(i)); });
     return c;
   }, [validations]);
-  const allValid = validations.every(v=>v.ok) && dupes.size===0;
-  const cleaned  = () => validations.filter(v=>v.ok).map(v=>v.data);
 
-  const update = (i,p) => setList(prev => prev.map((a,idx) => idx===i ? {...a,...p} : a));
-  const remove = (i)   => {
-    if (list.length > 1) setList(p => p.filter((_,x) => x !== i));
+  const allValid = validations.every(v => v.ok) && dupes.size === 0;
+  const cleaned = () => validations.filter(v => v.ok).map(v => v.data);
+
+  const update = (i: number, patch: Partial<typeof empty>) => {
+    setList(prev => prev.map((a, idx) => idx === i ? { ...a, ...patch } : a));
+  };
+
+  const remove = (i: number) => {
+    if (list.length > 1) setList(p => p.filter((_, x) => x !== i));
     else info("Precisa ter pelo menos 1 addon.");
   };
 
@@ -646,166 +514,297 @@ export default function Admin() {
       const { content, sha } = await ghGet();
       setGhSha(sha);
       if (Array.isArray(content) && content.length) {
-        setList(content.map(a => ({
-          id: a.id??"", title: a.title??"", category: a.category??"ncmine",
-          version: a.version??"1.0.0", rating: String(a.rating??5),
-          downloads: String(a.downloads??0), date: a.date??empty.date,
-          image: a.image??"", tagsRaw: (a.tags??[]).join(", "),
-          short: a.short??"", description: a.description??"",
-          downloadUrl: a.downloadUrl??"", author: a.author??"",
-          youtubeId: a.youtubeId??"",
+        setList(content.map((a: any) => ({
+          id: a.id ?? "", title: a.title ?? "", category: a.category ?? "ncmine",
+          version: a.version ?? "1.0.0", rating: String(a.rating ?? 5),
+          downloads: String(a.downloads ?? 0), date: a.date ?? empty.date,
+          image: a.image ?? "", tagsRaw: (a.tags ?? []).join(", "),
+          short: a.short ?? "", description: a.description ?? "",
+          downloadUrl: a.downloadUrl ?? "", author: a.author ?? "",
+          youtubeId: a.youtubeId ?? "",
         })));
         ok(`${content.length} addon(s) carregado(s) do GitHub!`);
       } else {
         info("Repositório vazio ou sem addons.");
       }
-    } catch(e) { err(e.message); }
+    } catch (e: any) { err(e.message); }
     setGhLoading(false);
   };
 
   const ghPushAll = async () => {
     if (!allValid) { err("Corrija os erros antes de enviar."); return; }
-    if (!ghSha)    { err("Carregue do GitHub primeiro para obter o SHA."); return; }
+    if (!ghSha) { err("Carregue do GitHub primeiro para obter o SHA."); return; }
     setGhLoading(true);
     try { await ghPush(cleaned(), ghSha); ok("✓ addons.json atualizado no GitHub!"); }
-    catch(e) { err(e.message); }
+    catch (e: any) { err(e.message); }
     setGhLoading(false);
   };
 
-  const publishOne = async (i) => {
-    const v = validations[i]; if(!v.ok||!webhook) return;
+  const publishOne = async (i: number) => {
+    const v = validations[i]; if (!v.ok || !webhook) return;
     setPublishing(i);
     try { await publishToDiscord(webhook, v.data, siteUrl); ok(`"${v.data.title}" publicado!`); }
-    catch(e) { err(e.message); }
+    catch (e: any) { err(e.message); }
     setPublishing(null);
   };
 
   const testDiscord = async () => {
     try {
       const r = await fetch(webhook, {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ username:"Mine Addons News", content:"✅ Webhook funcionando!" }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: "Mine Addons News", content: "✅ Webhook funcionando!" }),
       });
       r.ok ? ok("Teste enviado com sucesso!") : err(`Discord: ${r.status}`);
     } catch { err("Falha ao conectar ao Discord."); }
   };
 
-  // ── Estados de carregamento e auth ──
+  const generateJSON = () => {
+    if (!allValid) return;
+    setOutput(JSON.stringify(cleaned(), null, 2));
+  };
+
+  const generateCSV = () => {
+    if (!allValid) return;
+    const cols = ["id","title","category","version","rating","downloads","date","author","image","downloadUrl","youtubeId","tags","short","description"];
+    const head = cols.join(",");
+    const rows = cleaned().map((a: any) =>
+      cols.map(c => {
+        const v = a[c];
+        const s = Array.isArray(v) ? v.join("|") : (v ?? "");
+        if (/[",\n;]/.test(String(s))) return `"${String(s).replace(/"/g, '""')}"`;
+        return s;
+      }).join(",")
+    );
+    setCsvOut([head, ...rows].join("\n"));
+  };
+
+  const publishAll = async () => {
+    if (!allValid || publishing !== null) return;
+    setPublishing(-1);
+    let sent = 0;
+    for (const addon of cleaned()) {
+      try {
+        await publishToDiscord(webhook, addon, siteUrl);
+        sent++;
+        await new Promise(r => setTimeout(r, 1100));
+      } catch { err(`Erro: ${addon.title}`); }
+    }
+    setPublishing(null);
+    ok(`${sent}/${cleaned().length} publicado(s)!`);
+  };
+
   if (user === undefined) {
     return (
-      <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:ink }}>
-        <p style={{ color:"#f97316", fontFamily:mono, fontSize:16 }}>⟳ Verificando autenticação...</p>
+      <div className="min-h-screen flex items-center justify-center bg-ink">
+        <Loader2 className="size-8 text-orange animate-spin" />
+        <p className="text-orange font-mono ml-3">Verificando autenticação...</p>
       </div>
     );
   }
 
   if (!user) return <LoginScreen />;
 
-  // ── Painel principal ──
   return (
-    <div style={{ minHeight:"100vh", background:"#faf9f6", fontFamily:mono }}>
-      <style>{`
-        * { box-sizing:border-box; }
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap');
-        input:focus, textarea:focus { background:#fff!important; outline:none; }
-        button:active { transform:translate(2px,2px); box-shadow:1px 1px 0 #0a0a0a!important; }
-        textarea { font-family:'IBM Plex Mono',monospace; font-size:13px; }
-      `}</style>
+    <>
+      <Header />
+      <div className="mx-auto max-w-5xl px-4 py-10">
+        <div className="flex items-center gap-3 mb-2">
+          <span className="size-12 grid place-items-center bg-orange border-2 border-ink rounded-md" style={{ boxShadow: "4px 4px 0 0 var(--ink)" }}>
+            <Wrench className="size-6" />
+          </span>
+          <h1 className="font-display text-5xl md:text-6xl tracking-tighter">PAINEL ADMIN</h1>
+        </div>
+        <p className="text-muted-foreground mb-6 flex items-center gap-2">
+          <FileText className="size-4" /> Gerencie addons, publique no Discord e sincronize com GitHub.
+        </p>
 
-      {/* Header */}
-      <div style={{ background:ink, padding:"1rem 2rem", display:"flex", alignItems:"center", gap:16, flexWrap:"wrap" }}>
-        <span style={{ fontSize:22 }}>🔧</span>
-        <h1 style={{ color:"#f97316", fontFamily:mono, fontSize:24, fontWeight:700, letterSpacing:"-1px", margin:0 }}>
-          PAINEL ADMIN
-        </h1>
-        <span style={{ ...tag("#fef08a"), marginLeft:"auto" }}>Mine Addons News</span>
-        <span style={{ color:"#888", fontSize:11 }}>{user.email}</span>
-        <button onClick={()=>signOut(fbAuth)} style={{ ...btn("#333","#fff"), height:36, fontSize:10 }}>
-          Sair
-        </button>
-      </div>
-
-      <div style={{ maxWidth:960, margin:"0 auto", padding:"2rem 1rem" }}>
-
-        <SettingsPanel nvKey={nvKey} setNvKey={setNvKey}
-          webhook={webhook} setWebhook={setWebhook}
-          siteUrl={siteUrl} setSiteUrl={setSiteUrl}
-          onTestDiscord={testDiscord} />
-
+        <SettingsPanel nvKey={nvKey} setNvKey={setNvKey} webhook={webhook} setWebhook={setWebhook} siteUrl={siteUrl} setSiteUrl={setSiteUrl} onTestDiscord={testDiscord} />
         <GithubPanel onLoad={ghLoad} onPush={ghPushAll} loading={ghLoading} hasSha={!!ghSha} />
 
-        {/* Barra de status */}
-        <div style={{ ...card(allValid?"#d1fae5":"#fee2e2"), display:"flex", alignItems:"center", gap:12 }}>
-          <span style={{ fontSize:18 }}>{allValid?"✓":"✗"}</span>
-          <span style={{ fontWeight:700, fontSize:14 }}>
-            {allValid ? "Tudo válido — pronto para salvar/publicar!" : "Corrija os erros antes de gerar ou enviar"}
-          </span>
-          <span style={{ marginLeft:"auto", fontSize:12, color:"#555" }}>
-            {list.length} addon{list.length!==1?"s":""}
-          </span>
+        <div className={`brut px-4 py-3 mb-6 flex items-center gap-3 ${allValid ? "bg-lime" : "bg-paper"}`}>
+          {allValid ? (
+            <><CheckCircle2 className="size-5" /><span className="font-bold">Tudo válido</span></>
+          ) : (
+            <><AlertCircle className="size-5 text-destructive" /><span className="text-destructive font-bold">Corrija os erros antes de gerar</span></>
+          )}
+          <span className="ml-auto text-xs font-mono">{list.length} addons{list.length > 1 ? "s" : ""}</span>
         </div>
 
-        {/* Cards de addons */}
-        {list.map((a,i) => (
-          <AddonCard key={i} draft={a} index={i}
-            validation={validations[i]} isDupe={dupes.has(i)}
-            onUpdate={update} onRemove={remove}
-            onPublish={publishOne} publishing={publishing}
-            webhook={webhook} nvKey={nvKey} />
-        ))}
+        <div className="space-y-5">
+          {list.map((a, i) => {
+            const v = validations[i];
+            const errors = v.ok ? {} : v.errors;
+            const isDupe = dupes.has(i);
+            return (
+              <div key={i} className={`brut p-5 space-y-3 ${isDupe ? "bg-destructive/10" : ""}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="font-display text-2xl">#{i + 1}</span>
+                    {v.ok && !isDupe && <span className="brut-tag brut-tag-lime"><CheckCircle2 className="size-3" /> Válido</span>}
+                    {isDupe && <span className="brut-tag bg-destructive text-paper border-destructive"><AlertCircle className="size-3" /> ID duplicado</span>}
+                    {!v.ok && <span className="brut-tag bg-destructive text-paper border-destructive"><AlertCircle className="size-3" /> {Object.keys(errors).length} erro(s)</span>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {v.ok && !isDupe && webhook && (
+                      <button onClick={() => publishOne(i)} disabled={publishing !== null}
+                        className="inline-flex items-center gap-1.5 px-2 h-8 bg-[#5865F2] text-white border-2 border-ink rounded-md font-bold text-[10px] uppercase brut-press disabled:opacity-50">
+                        {publishing === i ? <Loader2 className="size-3 animate-spin" /> : <Send className="size-3" />} Discord
+                      </button>
+                    )}
+                    {list.length > 1 && (
+                      <button onClick={() => remove(i)} className="text-destructive hover:text-red-600 p-1.5"><Trash2 className="size-4" /></button>
+                    )}
+                  </div>
+                </div>
 
-        {/* Botões de ação */}
-        <div style={{ display:"flex", flexWrap:"wrap", gap:12, marginTop:8 }}>
-          <button onClick={()=>setList(p=>[...p,{...empty}])} style={btn("#fff",ink)}>
-            ＋ Adicionar addon
+                <UrlExtractor nvKey={nvKey} onExtracted={data => update(i, { ...data, id: data.title ? slugify(data.title) : a.id })} onError={msg => alert(msg)} />
+
+                <div className="grid md:grid-cols-2 gap-3">
+                  <Field icon={<Type />} label="Título" value={a.title} onChange={v => update(i, { title: v, id: a.id || slugify(v) })} error={errors.title} />
+                  <Field icon={<Hash />} label="ID (slug)" value={a.id} onChange={v => update(i, { id: v })} error={errors.id || (isDupe ? "ID duplicado" : undefined)} />
+                  <Field icon={<TagIcon />} label="Categoria" value={a.category} onChange={v => update(i, { category: v })} error={errors.category} hint="ncmine, shaders, mobs..." />
+                  <Field icon={<GitBranch />} label="Versão" value={a.version} onChange={v => update(i, { version: v })} />
+                  <Field icon={<User />} label="Autor" value={a.author} onChange={v => update(i, { author: v })} error={errors.author} />
+                  <Field icon={<Calendar />} label="Data" type="date" value={a.date} onChange={v => update(i, { date: v })} />
+                  <Field icon={<Star />} label="Avaliação (0-5)" type="number" value={a.rating} onChange={v => update(i, { rating: v })} error={errors.rating} />
+                  <Field icon={<TrendingUp />} label="Downloads" type="number" value={a.downloads} onChange={v => update(i, { downloads: v })} error={errors.downloads} />
+                  <Field icon={<ImageIcon />} label="URL da Imagem" value={a.image} onChange={v => update(i, { image: v })} error={errors.image} className="md:col-span-2" />
+                  <Field icon={<LinkIcon />} label="URL de Download" value={a.downloadUrl} onChange={v => update(i, { downloadUrl: v })} error={errors.downloadUrl} className="md:col-span-2" />
+                  <Field icon={<Youtube />} label="YouTube ID" value={a.youtubeId} onChange={v => update(i, { youtubeId: v })} hint="Ex: dQw4w9WgXcQ" className="md:col-span-2" />
+                  <Field icon={<TagIcon />} label="Tags (vírgula)" value={a.tagsRaw} onChange={v => update(i, { tagsRaw: v })} className="md:col-span-2" />
+                  <Field icon={<FileText />} label="Resumo (até 140)" value={a.short} onChange={v => update(i, { short: v })} error={errors.short} className="md:col-span-2" />
+                  <TextArea icon={<FileText />} label="Descrição" value={a.description} onChange={v => update(i, { description: v })} error={errors.description} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button onClick={() => setList(p => [...p, { ...empty }])}
+                  className="inline-flex items-center gap-2 px-5 h-11 rounded-md bg-paper border-2 border-ink font-bold uppercase tracking-wider text-sm brut-press">
+            <Plus className="size-4" /> Adicionar
           </button>
-          <button onClick={()=>allValid&&setOutput(JSON.stringify(cleaned(),null,2))}
-            disabled={!allValid} style={{ ...btn("#f97316","#fff"), opacity:allValid?1:0.4 }}>
-            👁 Ver JSON
+          <button onClick={generateJSON} disabled={!allValid}
+                  className="inline-flex items-center gap-2 px-5 h-11 rounded-md bg-orange border-2 border-ink font-bold uppercase tracking-wider text-sm brut-press disabled:opacity-40"
+                  style={{ boxShadow: "4px 4px 0 0 var(--ink)" }}>
+            <Eye className="size-4" /> Ver JSON
           </button>
-          <button onClick={ghPushAll} disabled={!allValid||ghLoading||!ghSha}
-            style={{ ...btn("#16a34a","#fff"), opacity:allValid&&!ghLoading&&ghSha?1:0.4 }}>
-            {ghLoading?"⏳ Enviando...":"🚀 Salvar no GitHub"}
+          <button onClick={generateCSV} disabled={!allValid}
+                  className="inline-flex items-center gap-2 px-5 h-11 rounded-md bg-lime border-2 border-ink font-bold uppercase tracking-wider text-sm brut-press disabled:opacity-40"
+                  style={{ boxShadow: "4px 4px 0 0 var(--ink)" }}>
+            <FileText className="size-4" /> Ver CSV
           </button>
           {webhook && (
-            <button onClick={async()=>{
-              if(!allValid||publishing!==null) return;
-              setPublishing(-1); let sent=0;
-              for(const addon of cleaned()){
-                try{ await publishToDiscord(webhook,addon,siteUrl); sent++; await new Promise(r=>setTimeout(r,1100)); }
-                catch{ err(`Erro: ${addon.title}`); }
-              }
-              setPublishing(null); ok(`${sent}/${cleaned().length} publicado(s)!`);
-            }} disabled={!allValid||publishing!==null}
-              style={{ ...btn("#5865F2","#fff"), opacity:allValid&&publishing===null?1:0.4 }}>
-              {publishing===-1?"⏳ Publicando...":"📢 Publicar tudo no Discord"}
+            <button onClick={publishAll} disabled={!allValid || publishing !== null}
+                    className="inline-flex items-center gap-2 px-5 h-11 rounded-md bg-[#5865F2] text-white border-2 border-ink font-bold uppercase tracking-wider text-sm brut-press disabled:opacity-40"
+                    style={{ boxShadow: "4px 4px 0 0 var(--ink)" }}>
+              {publishing === -1 ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} Publicar tudo no Discord
             </button>
           )}
         </div>
 
-        {/* JSON Preview */}
-        {output && (
-          <div style={{ ...card(), marginTop:"2rem" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12, flexWrap:"wrap" }}>
-              <span style={{ fontWeight:700, fontSize:14 }}>👁 JSON GERADO</span>
-              <button onClick={()=>{navigator.clipboard.writeText(output);ok("Copiado!");}}
-                style={{ ...btn("#fff",ink), height:34, fontSize:10 }}>📋 Copiar</button>
-              <button onClick={()=>{
-                const blob=new Blob([output],{type:"application/json"});
-                const u=URL.createObjectURL(blob);
-                const a=document.createElement("a"); a.href=u; a.download="addons.json"; a.click();
-                URL.revokeObjectURL(u);
-              }} style={{ ...btn("#f97316","#fff"), height:34, fontSize:10 }}>⬇ Baixar</button>
-            </div>
-            <pre style={{ background:ink, color:"#a3e635", padding:"1.25rem", fontSize:12,
-              overflowX:"auto", maxHeight:480, margin:0, fontFamily:mono }}>
-              <code>{output}</code>
-            </pre>
-          </div>
-        )}
-      </div>
+        {output && <Preview title="JSON" content={output} onCopy={() => navigator.clipboard.writeText(output)} onDownload={() => downloadFile(output, "addons.json", "application/json")} />}
+        {csvOut && <Preview title="CSV" content={csvOut} onCopy={() => navigator.clipboard.writeText(csvOut)} onDownload={() => downloadFile(csvOut, "addons.csv", "text/csv")} />}
 
-      <Toasts toasts={toasts} />
+        {/* Toasts */}
+        <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-xs">
+          {toasts.map(t => (
+            <div key={t.id} className={`flex items-center gap-2 px-4 py-2 border-2 border-ink rounded-md font-mono font-bold text-xs animate-slide-up ${
+              t.type === "ok" ? "bg-lime" : t.type === "err" ? "bg-destructive/20 text-destructive" : "bg-paper"
+            }`}>
+              {t.type === "ok" ? <CheckCircle2 className="size-4" /> : t.type === "err" ? <AlertCircle className="size-4" /> : <AlertCircle className="size-4" />}
+              {t.text}
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Sub-componentes de campo (Tailwind) ──────────────────────────────────────────
+type FieldProps = {
+  icon: React.ReactNode; label: string; value: string;
+  onChange: (v: string) => void; type?: string; className?: string; hint?: string; error?: string;
+};
+
+function Field({ icon, label, value, onChange, type = "text", className = "", hint, error }: FieldProps) {
+  return (
+    <label className={`block ${className}`}>
+      <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-mono font-bold">
+        <span className="size-3 [&>svg]:size-3">{icon}</span>
+        {label}
+      </span>
+      <input
+        type={type} value={value} onChange={e => onChange(e.target.value)}
+        className={`mt-1 w-full h-10 px-3 rounded-md bg-input border-2 outline-none text-sm transition ${
+          error ? "border-destructive" : "border-ink focus:bg-paper"
+        }`}
+      />
+      {error ? (
+        <span className="text-[10px] text-destructive mt-1 flex items-center gap-1"><AlertCircle className="size-3" /> {error}</span>
+      ) : hint && (
+        <span className="text-[10px] text-muted-foreground/80">{hint}</span>
+      )}
+    </label>
+  );
+}
+
+function TextArea({ icon, label, value, onChange, error }: { icon: React.ReactNode; label: string; value: string; onChange: (v: string) => void; error?: string }) {
+  return (
+    <label className="block md:col-span-2">
+      <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-mono font-bold">
+        <span className="size-3 [&>svg]:size-3">{icon}</span>
+        {label}
+      </span>
+      <textarea
+        value={value} onChange={e => onChange(e.target.value)} rows={4}
+        className={`mt-1 w-full px-3 py-2 rounded-md bg-input border-2 outline-none text-sm ${
+          error ? "border-destructive" : "border-ink focus:bg-paper"
+        }`}
+      />
+      {error && <span className="text-[10px] text-destructive mt-1 flex items-center gap-1"><AlertCircle className="size-3" /> {error}</span>}
+    </label>
+  );
+}
+
+function Preview({ title, content, onCopy, onDownload }: { title: string; content: string; onCopy: () => void; onDownload: () => void }) {
+  return (
+    <div className="mt-8 brut p-5">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div className="font-display text-2xl flex items-center gap-2"><Eye className="size-5" /> PREVIEW {title}</div>
+        <div className="flex gap-2">
+          <button onClick={onCopy} className="inline-flex items-center gap-2 px-3 h-9 rounded-md border-2 border-ink bg-paper text-xs font-bold uppercase brut-press">
+            <Copy className="size-3.5" /> Copiar
+          </button>
+          <button onClick={onDownload} className="inline-flex items-center gap-2 px-3 h-9 rounded-md border-2 border-ink bg-orange text-xs font-bold uppercase brut-press">
+            <DownloadIcon className="size-3.5" /> Baixar
+          </button>
+        </div>
+      </div>
+      <pre className="text-xs font-mono bg-ink text-paper rounded-md p-4 overflow-auto max-h-[500px] border-2 border-ink">
+        <code>{content}</code>
+      </pre>
     </div>
   );
 }
+
+function downloadFile(content: string, name: string, mime: string) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── Rota ─────────────────────────────────────────────────────────────────────────
+export const Route = createFileRoute("/admin")({
+  head: () => ({
+    meta: [
+      { title: "Painel — Mine Addons News" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
+  component: Admin,
+});
