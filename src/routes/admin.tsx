@@ -1,31 +1,13 @@
 // src/routes/admin.tsx
-import { useMemo, useState, useEffect, useRef, useCallback } from "react";
+import { useMemo, useState, useRef, useCallback } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { initializeApp, getApps } from "firebase/app";
-import {
-  getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
-} from "firebase/auth";
 import {
   Copy, Download as DownloadIcon, Plus, Trash2, CheckCircle2, AlertCircle,
   Hash, Type, Tag as TagIcon, GitBranch, User, Calendar, Star, TrendingUp,
   Image as ImageIcon, Link as LinkIcon, FileText, Youtube, Wrench, Eye,
-  Settings, Loader2, Bot, Globe, Send, ShieldAlert,
+  Settings, Loader2, Bot, Globe, Send,
 } from "lucide-react";
 import { Header } from "@/components/Header";
-
-// ─── Firebase ───────────────────────────────────────────────────────────────────
-const FB_CONFIG = {
-  apiKey: "AIzaSyAKcFlRmCjuQ35hiGnlDmOPO1P4VdjGZqw",
-  authDomain: "mineaddonsnews-web.firebaseapp.com",
-  databaseURL: "https://mineaddonsnews-web-default-rtdb.firebaseio.com",
-  projectId: "mineaddonsnews-web",
-  storageBucket: "mineaddonsnews-web.firebasestorage.app",
-  messagingSenderId: "877653857210",
-  appId: "1:877653857210:web:13cbd8a9d58d611000c383",
-  measurementId: "G-YG2BXTLYJJ",
-};
-const fbApp = getApps().length ? getApps()[0] : initializeApp(FB_CONFIG);
-const fbAuth = getAuth(fbApp);
 
 // ─── GitHub (token ofuscado em partes) ─────────────────────────────────────────
 const GH_OWNER = "ncmine286715";
@@ -146,7 +128,7 @@ async function extractViaNvidia(url: string, apiKey: string) {
         },
         {
           role: "user",
-          content: `Acesse esta URL e extraia as informações do addon: ${url}\n\nRetorne EXATAMENTE neste formato JSON (string vazia se não encontrar):\n{"title":"","author":"","version":"1.0.0","short":"","description":"","image":"","downloadUrl":"","tagsRaw":"","category":"ncmine","youtubeId":""}\n\ncategory deve ser um de: ncmine|shaders|texturas|mobs|mapas|pvp|decoracao|utilitarios\ntarasRaw: tags separadas por vírgula\nyoutubeId: só o ID de 11 chars`,
+          content: `Acesse esta URL e extraia as informações do addon: ${url}\n\nRetorne EXATAMENTE neste formato JSON (string vazia se não encontrar):\n{"title":"","author":"","version":"1.0.0","short":"","description":"","image":"","downloadUrl":"","tagsRaw":"","category":"ncmine","youtubeId":""}`,
         },
       ],
     }),
@@ -404,62 +386,8 @@ function GithubPanel({ onLoad, onPush, loading, hasSha }: any) {
   );
 }
 
-// ─── Login Screen (Tailwind version) ─────────────────────────────────────────────
-function LoginScreen() {
-  const [email, setEmail] = useState("");
-  const [pw, setPw] = useState("");
-  const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const submit = async () => {
-    if (!email || !pw) { setErr("Preencha e-mail e senha."); return; }
-    setBusy(true); setErr("");
-    try {
-      await signInWithEmailAndPassword(fbAuth, email, pw);
-    } catch (e: any) {
-      const m: Record<string, string> = {
-        "auth/invalid-credential": "E-mail ou senha incorretos.",
-        "auth/user-not-found": "Usuário não encontrado.",
-        "auth/wrong-password": "Senha incorreta.",
-        "auth/too-many-requests": "Muitas tentativas. Aguarde um momento.",
-        "auth/invalid-email": "E-mail inválido.",
-      };
-      setErr(m[e.code] || "Erro de autenticação. Tente novamente.");
-    }
-    setBusy(false);
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-ink">
-      <div className="brut bg-paper p-10 max-w-sm w-full">
-        <div className="flex items-center gap-3 mb-4">
-          <ShieldAlert className="size-10 text-orange" />
-          <h1 className="font-display text-3xl tracking-tighter uppercase">Painel Admin</h1>
-        </div>
-        <p className="text-xs text-muted-foreground mb-6">Mine Addons News — Firebase Authentication</p>
-        <label className="text-[10px] font-mono font-bold uppercase tracking-widest">E-mail</label>
-        <input type="email" value={email} onChange={e => { setEmail(e.target.value); setErr(""); }}
-          className="w-full h-10 px-3 rounded-md bg-input border-2 border-ink text-sm mt-1 mb-3" placeholder="seu@email.com"
-          onKeyDown={e => e.key === "Enter" && submit()} />
-        <label className="text-[10px] font-mono font-bold uppercase tracking-widest">Senha</label>
-        <input type="password" value={pw} onChange={e => { setPw(e.target.value); setErr(""); }}
-          className={`w-full h-10 px-3 rounded-md bg-input border-2 text-sm mt-1 mb-1 ${err ? "border-destructive" : "border-ink"}`}
-          placeholder="••••••••••••" onKeyDown={e => e.key === "Enter" && submit()} />
-        {err && <p className="text-[10px] text-destructive mt-1 flex items-center gap-1"><AlertCircle className="size-3" /> {err}</p>}
-        <button onClick={submit} disabled={busy}
-          className={`mt-4 w-full h-11 bg-ink text-orange border-2 border-ink rounded-md font-bold uppercase tracking-wider text-sm brut-press ${busy ? "opacity-60" : ""}`}
-          style={{ boxShadow: "4px 4px 0 0 var(--ink)" }}>
-          {busy ? "Verificando..." : "Entrar →"}
-        </button>
-        <p className="text-[10px] text-muted-foreground mt-4 text-center">Autenticado via Firebase · Somente usuários autorizados</p>
-      </div>
-    </div>
-  );
-}
-
 // ─── Admin Principal ──────────────────────────────────────────────────────────────
 function Admin() {
-  const [user, setUser] = useState<any>(undefined);
   const [list, setList] = useState<typeof empty[]>([{ ...empty }]);
   const [output, setOutput] = useState("");
   const [csvOut, setCsvOut] = useState("");
@@ -471,16 +399,11 @@ function Admin() {
   const [ghSha, setGhSha] = useState<string | null>(null);
   const { toasts, ok, err, info } = useToasts();
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(fbAuth, (u) => setUser(u ?? null));
-    return () => unsub();
-  }, []);
-
-  useEffect(() => {
+  useState(() => {
     setNvKey(localStorage.getItem(NV_KEY_LS) ?? "");
     setWebhook(localStorage.getItem(DISCORD_KEY) ?? "");
     setSiteUrl(localStorage.getItem(DISCORD_SITE_KEY) ?? "");
-  }, []);
+  });
 
   const validations = useMemo(() => list.map(draftToAddon), [list]);
   const dupes = useMemo(() => {
@@ -593,17 +516,6 @@ function Admin() {
     ok(`${sent}/${cleaned().length} publicado(s)!`);
   };
 
-  if (user === undefined) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-ink">
-        <Loader2 className="size-8 text-orange animate-spin" />
-        <p className="text-orange font-mono ml-3">Verificando autenticação...</p>
-      </div>
-    );
-  }
-
-  if (!user) return <LoginScreen />;
-
   return (
     <>
       <Header />
@@ -707,7 +619,6 @@ function Admin() {
         {output && <Preview title="JSON" content={output} onCopy={() => navigator.clipboard.writeText(output)} onDownload={() => downloadFile(output, "addons.json", "application/json")} />}
         {csvOut && <Preview title="CSV" content={csvOut} onCopy={() => navigator.clipboard.writeText(csvOut)} onDownload={() => downloadFile(csvOut, "addons.csv", "text/csv")} />}
 
-        {/* Toasts */}
         <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-xs">
           {toasts.map(t => (
             <div key={t.id} className={`flex items-center gap-2 px-4 py-2 border-2 border-ink rounded-md font-mono font-bold text-xs animate-slide-up ${
@@ -723,7 +634,6 @@ function Admin() {
   );
 }
 
-// ─── Sub-componentes de campo (Tailwind) ──────────────────────────────────────────
 type FieldProps = {
   icon: React.ReactNode; label: string; value: string;
   onChange: (v: string) => void; type?: string; className?: string; hint?: string; error?: string;
@@ -798,7 +708,6 @@ function downloadFile(content: string, name: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
-// ─── Rota ─────────────────────────────────────────────────────────────────────────
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
