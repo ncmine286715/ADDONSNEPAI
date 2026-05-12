@@ -37,7 +37,7 @@ const empty: Draft = {
 };
 
 const NVIDIA_MODELS = [
-  "meta/llama-3.1-8b-instruct",
+  "google/gemma-4-31b-it",
   "meta/llama-3.1-70b-instruct",
   "meta/llama-3.1-405b-instruct",
   "nvidia/llama-3.1-nemotron-70b-instruct",
