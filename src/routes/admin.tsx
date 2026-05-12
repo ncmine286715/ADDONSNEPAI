@@ -191,7 +191,7 @@ const askAI = async () => {
 Chaves obrigatórias: id (slug em minúsculo), title, category, version, rating (0-5), downloads (número), date (YYYY-MM-DD), image (URL ou vazio), tags (array de strings), short (máx 140 chars), description, downloadUrl (URL ou vazio), author. youtubeId é opcional.`;
 
   try {
-    const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+    const response = await fetch("https://integrate.api.nvidia.com/v1", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
