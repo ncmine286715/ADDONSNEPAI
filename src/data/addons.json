@@ -93,5 +93,26 @@
     "description": "Watching videos in Minecraft? It might sound unbelievable, but now, thanks to this Add-On, it's a reality! Introducing Working Projector, an Add-On that enables you to seamlessly play videos in Minecraft. Choose any video you desire—add it to our WebApp, and voila, you now have a projector that can project videos onto a wall, allowing you to watch videos in Minecraft like never before! TO ADD YOUR OWN VIDEOS, YOU NEED TO UPLOAD THEM TO THE WEBAPP! https://blockstate.team/projects/working-projector",
     "downloadUrl": "https://1024terabox.com/s/14FNiaCpasoktOlX7hykWNA",
     "author": "BlockStateTeam"
+  },
+  {
+    "id": "cinecam",
+    "title": "Cinecam",
+    "category": "utilidades",
+    "version": "1.0.0",
+    "rating": 5,
+    "downloads": 1212,
+    "date": "2026-05-12",
+    "image": "https://i.imgur.com/M6vJ6a8.png",
+    "tags": [
+      "cinecam",
+      "camera",
+      "f5",
+      "perpesctiva"
+    ],
+    "short": "Create cinematic masterpieces with professional camera.",
+    "description": "Create cinematic masterpieces with professional camera tools and smooth path animations.\n- Path Camera with visual particle paths and smooth cinematic shots\n- Multiple modes: Shoulder Surf, Drone, 360 Drone, Static placement\n- Admin tools for managing cameras and global settings\n- Licensed by SE7ENDAYS Studio and published by BLOCKLAB Studios.",
+    "downloadUrl": "https://1024terabox.com/s/1wXmpjk-wU3IkQEstz0ZY1Q",
+    "author": "BLOCKLAB",
+    "youtubeId": "z_DSttSAmDI"
   }
 ]
