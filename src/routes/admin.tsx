@@ -178,72 +178,84 @@ function Admin() {
   };
 
   // --- AI Integration ---
-  const askAI = async () => {
-    if (!settings.apiKey) return setNotification({ type: "error", msg: "Configure a API Key nas Configurações." });
-    if (!aiPrompt.trim()) return setNotification({ type: "error", msg: "Digite uma descrição para o addon." });
+  // --- Atualize a função askAI com este código ---
 
-    setAiLoading(true);
-    setAiError(null);
+const askAI = async () => {
+  if (!settings.apiKey) return setNotification({ type: "error", msg: "Configure a API Key nas Configurações." });
+  if (!aiPrompt.trim()) return setNotification({ type: "error", msg: "Digite uma descrição para o addon." });
 
-    const systemPrompt = `Você é um especialista em Minecraft Addons. Com base na descrição do usuário, retorne APENAS um JSON válido com as chaves exatas abaixo. Não use markdown, não explique.
-Chaves: id (slug), title, category, version, rating (0-5), downloads (número), date (YYYY-MM-DD), image (URL placeholder), tags (array de strings), short (max 140 chars), description, downloadUrl (URL placeholder), author, youtubeId (opcional)`;
+  setAiLoading(true);
+  setAiError(null);
 
-    try {
-      const res = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${settings.apiKey}`
-        },
-        body: JSON.stringify({
-          model: settings.model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: aiPrompt }
-          ],
-          temperature: 0.7,
-          max_tokens: 512
-        })
-      });
+  const systemPrompt = `Você é um especialista em Minecraft Addons. Com base na descrição do usuário, retorne APENAS um JSON válido com as chaves exatas abaixo. Não use markdown, não explique, não adicione texto extra.
+Chaves obrigatórias: id (slug em minúsculo), title, category, version, rating (0-5), downloads (número), date (YYYY-MM-DD), image (URL ou vazio), tags (array de strings), short (máx 140 chars), description, downloadUrl (URL ou vazio), author. youtubeId é opcional.`;
 
-      if (!res.ok) throw new Error(`Erro na API NVIDIA: ${res.status}`);
+  try {
+    const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${settings.apiKey}`,
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({
+        model: settings.model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: aiPrompt }
+        ],
+        max_tokens: 2048,
+        temperature: 0.7,
+        top_p: 0.95,
+        stream: false,
+        // chat_template_kwargs só funciona em modelos que suportam "thinking", use com cautela
+        // chat_template_kwargs: { enable_thinking: false }
+      })
+    });
 
-      const data = await res.json();
-      let content = data.choices?.[0]?.message?.content || "";
-      
-      // Remove markdown se houver
-      content = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      const parsed = JSON.parse(content);
-
-      const newDraft: Draft = {
-        ...empty,
-        id: parsed.id || slugify(parsed.title),
-        title: parsed.title || "",
-        category: parsed.category || "ncmine",
-        version: parsed.version || "1.0.0",
-        rating: String(parsed.rating ?? 5),
-        downloads: String(parsed.downloads ?? 0),
-        date: parsed.date || new Date().toISOString().slice(0, 10),
-        image: parsed.image || "",
-        tagsRaw: Array.isArray(parsed.tags) ? parsed.tags.join(", ") : "",
-        short: parsed.short || "",
-        description: parsed.description || "",
-        downloadUrl: parsed.downloadUrl || "",
-        author: parsed.author || "",
-        youtubeId: parsed.youtubeId || ""
-      };
-
-      setList(prev => [...prev, newDraft]);
-      setActiveTab("editor");
-      setNotification({ type: "success", msg: "Addon preenchido pela IA!" });
-      setAiPrompt("");
-    } catch (err: any) {
-      setAiError(err.message);
-      setNotification({ type: "error", msg: "Falha ao gerar com IA." });
-    } finally {
-      setAiLoading(false);
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(`Erro ${response.status}: ${errData.error?.message || response.statusText}`);
     }
-  };
+
+    const data = await response.json();
+    let content = data.choices?.[0]?.message?.content || "";
+    
+    // Remove markdown code blocks se a IA retornar
+    content = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+    
+    const parsed = JSON.parse(content);
+
+    const newDraft: Draft = {
+      ...empty,
+      id: parsed.id || slugify(parsed.title || "novo-addon"),
+      title: parsed.title || "",
+      category: parsed.category || "ncmine",
+      version: parsed.version || "1.0.0",
+      rating: String(parsed.rating ?? 5),
+      downloads: String(parsed.downloads ?? 0),
+      date: parsed.date || new Date().toISOString().slice(0, 10),
+      image: parsed.image || "",
+      tagsRaw: Array.isArray(parsed.tags) ? parsed.tags.join(", ") : "",
+      short: parsed.short || "",
+      description: parsed.description || "",
+      downloadUrl: parsed.downloadUrl || "",
+      author: parsed.author || "",
+      youtubeId: parsed.youtubeId || ""
+    };
+
+    setList(prev => [...prev, newDraft]);
+    setActiveTab("editor");
+    setNotification({ type: "success", msg: "✅ Addon preenchido pela IA!" });
+    setAiPrompt("");
+  } catch (err: any) {
+    console.error("IA Error:", err);
+    setAiError(err.message || "Erro desconhecido ao conectar com NVIDIA NIM");
+    setNotification({ type: "error", msg: "❌ Falha ao gerar com IA" });
+  } finally {
+    setAiLoading(false);
+  }
+};
 
   // --- Discord Webhook ---
   const sendToDiscord = async (idx: number) => {
