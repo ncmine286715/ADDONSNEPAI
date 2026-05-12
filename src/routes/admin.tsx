@@ -1,5 +1,6 @@
+// Substitua TODO o arquivo admin.tsx por este código
 
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Copy, Download as DownloadIcon, Plus, Trash2, CheckCircle2, AlertCircle,
@@ -36,6 +37,9 @@ const empty: Draft = {
   downloadUrl: "", author: "", youtubeId: "",
 };
 
+// SUA API KEY AQUI (só você vai ver)
+const NVIDIA_API_KEY = "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";
+
 const NVIDIA_MODELS = [
   "google/gemma-4-31b-it",
   "meta/llama-3.1-70b-instruct",
@@ -50,7 +54,6 @@ const NVIDIA_MODELS = [
 ];
 
 type Settings = {
-  apiKey: string;
   model: string;
   webhookUrl: string;
 };
@@ -120,7 +123,6 @@ function Admin() {
   const [notification, setNotification] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
   const [settings, setSettings] = useState<Settings>({
-    apiKey: localStorage.getItem("nvidia_api_key") || "",
     model: localStorage.getItem("nvidia_model") || NVIDIA_MODELS[0],
     webhookUrl: localStorage.getItem("discord_webhook") || ""
   });
@@ -131,7 +133,6 @@ function Admin() {
   const [aiError, setAiError] = useState<string | null>(null);
 
   useEffect(() => {
-    localStorage.setItem("nvidia_api_key", settings.apiKey);
     localStorage.setItem("nvidia_model", settings.model);
     localStorage.setItem("discord_webhook", settings.webhookUrl);
   }, [settings]);
@@ -177,90 +178,91 @@ function Admin() {
     setNotification({ type: "success", msg: "CSV gerado com sucesso!" });
   };
 
-  // --- AI Integration ---
-  // --- Atualize a função askAI com este código ---
-
-const askAI = async () => {
-  if (!settings.apiKey) return setNotification({ type: "error", msg: "Configure a API Key nas Configurações." });
-  if (!aiPrompt.trim()) return setNotification({ type: "error", msg: "Digite uma descrição para o addon." });
-
-  setAiLoading(true);
-  setAiError(null);
-
-  const systemPrompt = `Você é um especialista em Minecraft Addons. Com base na descrição do usuário, retorne APENAS um JSON válido com as chaves exatas abaixo. Não use markdown, não explique, não adicione texto extra.
-Chaves obrigatórias: id (slug em minúsculo), title, category, version, rating (0-5), downloads (número), date (YYYY-MM-DD), image (URL ou vazio), tags (array de strings), short (máx 140 chars), description, downloadUrl (URL ou vazio), author. youtubeId é opcional.`;
-
-  try {
-    const response = await fetch("https://integrate.api.nvidia.com/v1", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${settings.apiKey}`,
-        "Accept": "application/json"
-      },
-      body: JSON.stringify({
-        model: settings.model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: aiPrompt }
-        ],
-        max_tokens: 2048,
-        temperature: 0.7,
-        top_p: 0.95,
-        stream: false,
-        // chat_template_kwargs só funciona em modelos que suportam "thinking", use com cautela
-        // chat_template_kwargs: { enable_thinking: false }
-      })
-    });
-
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(`Erro ${response.status}: ${errData.error?.message || response.statusText}`);
+  // --- AI Integration (SIMPLES E DIRETO) ---
+  const askAI = async () => {
+    if (!aiPrompt.trim()) {
+      setNotification({ type: "error", msg: "Digite uma descrição para o addon." });
+      return;
     }
 
-    const data = await response.json();
-    let content = data.choices?.[0]?.message?.content || "";
-    
-    // Remove markdown code blocks se a IA retornar
-    content = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-    
-    const parsed = JSON.parse(content);
+    setAiLoading(true);
+    setAiError(null);
 
-    const newDraft: Draft = {
-      ...empty,
-      id: parsed.id || slugify(parsed.title || "novo-addon"),
-      title: parsed.title || "",
-      category: parsed.category || "ncmine",
-      version: parsed.version || "1.0.0",
-      rating: String(parsed.rating ?? 5),
-      downloads: String(parsed.downloads ?? 0),
-      date: parsed.date || new Date().toISOString().slice(0, 10),
-      image: parsed.image || "",
-      tagsRaw: Array.isArray(parsed.tags) ? parsed.tags.join(", ") : "",
-      short: parsed.short || "",
-      description: parsed.description || "",
-      downloadUrl: parsed.downloadUrl || "",
-      author: parsed.author || "",
-      youtubeId: parsed.youtubeId || ""
-    };
+    try {
+      const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${NVIDIA_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: settings.model,
+          messages: [
+            {
+              role: "system",
+              content: "Você é um especialista em Minecraft Addons. Retorne APENAS um JSON válido (sem markdown, sem explicações) com estas chaves exatas: id (slug minúsculo), title, category, version, rating (número 0-5), downloads (número), date (YYYY-MM-DD), image (URL string), tags (array de strings), short (máximo 140 caracteres), description (string longa), downloadUrl (URL string), author (string), youtubeId (opcional, string)."
+            },
+            { role: "user", content: aiPrompt }
+          ],
+          max_tokens: 1024,
+          temperature: 0.7,
+          top_p: 0.95,
+          stream: false
+        })
+      });
 
-    setList(prev => [...prev, newDraft]);
-    setActiveTab("editor");
-    setNotification({ type: "success", msg: "✅ Addon preenchido pela IA!" });
-    setAiPrompt("");
-  } catch (err: any) {
-    console.error("IA Error:", err);
-    setAiError(err.message || "Erro desconhecido ao conectar com NVIDIA NIM");
-    setNotification({ type: "error", msg: "❌ Falha ao gerar com IA" });
-  } finally {
-    setAiLoading(false);
-  }
-};
+      if (!response.ok) {
+        throw new Error(`Erro ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      let content = data.choices?.[0]?.message?.content || "";
+      
+      // Limpar markdown se vier
+      content = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      
+      const parsed = JSON.parse(content);
+
+      const newDraft: Draft = {
+        ...empty,
+        id: parsed.id || slugify(parsed.title || "novo-addon"),
+        title: parsed.title || "Novo Addon",
+        category: parsed.category || "ncmine",
+        version: parsed.version || "1.0.0",
+        rating: String(parsed.rating ?? 5),
+        downloads: String(parsed.downloads ?? 0),
+        date: parsed.date || new Date().toISOString().slice(0, 10),
+        image: parsed.image || "",
+        tagsRaw: Array.isArray(parsed.tags) ? parsed.tags.join(", ") : "",
+        short: parsed.short || "",
+        description: parsed.description || "",
+        downloadUrl: parsed.downloadUrl || "",
+        author: parsed.author || "",
+        youtubeId: parsed.youtubeId || ""
+      };
+
+      setList(prev => [...prev, newDraft]);
+      setActiveTab("editor");
+      setNotification({ type: "success", msg: "✅ Addon gerado pela IA!" });
+      setAiPrompt("");
+      
+    } catch (err: any) {
+      console.error("Erro IA:", err);
+      const msg = err.message || "Erro ao conectar com IA";
+      setAiError(msg);
+      setNotification({ type: "error", msg: `❌ ${msg}` });
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   // --- Discord Webhook ---
   const sendToDiscord = async (idx: number) => {
     const v = validations[idx];
-    if (!v.ok || !settings.webhookUrl) return setNotification({ type: "error", msg: "Configuração de Webhook ou validação pendente." });
+    if (!v.ok || !settings.webhookUrl) {
+      setNotification({ type: "error", msg: "Webhook não configurado ou dados inválidos." });
+      return;
+    }
 
     const addon = v.data;
     const payload = {
@@ -288,6 +290,7 @@ Chaves obrigatórias: id (slug em minúsculo), title, category, version, rating 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
+      
       if (res.ok) {
         setNotification({ type: "success", msg: "Enviado para o Discord!" });
       } else {
@@ -312,14 +315,22 @@ Chaves obrigatórias: id (slug em minúsculo), title, category, version, rating 
       <div className="mx-auto max-w-5xl px-4 py-10">
         {/* Notification Toast */}
         {notification && (
-          <div className={`fixed top-4 right-4 z-50 px-4 py-2 rounded-md border-2 font-bold text-sm brut-shadow ${notification.type === "success" ? "bg-lime border-ink" : "bg-destructive text-paper border-destructive"}`}>
-            {notification.type === "success" ? <CheckCircle2 className="size-4 inline mr-2" /> : <AlertCircle className="size-4 inline mr-2" />}
+          <div className={`fixed top-4 right-4 z-50 px-4 py-2 rounded-md border-2 font-bold text-sm brut-shadow ${
+            notification.type === "success" 
+              ? "bg-lime border-ink" 
+              : "bg-destructive text-paper border-destructive"
+          }`}>
+            {notification.type === "success" 
+              ? <CheckCircle2 className="size-4 inline mr-2" /> 
+              : <AlertCircle className="size-4 inline mr-2" />
+            }
             {notification.msg}
           </div>
         )}
 
         <div className="flex items-center gap-3 mb-4">
-          <span className="size-12 grid place-items-center bg-orange border-2 border-ink rounded-md" style={{ boxShadow: "4px 4px 0 0 var(--ink)" }}>
+          <span className="size-12 grid place-items-center bg-orange border-2 border-ink rounded-md" 
+                style={{ boxShadow: "4px 4px 0 0 var(--ink)" }}>
             <Wrench className="size-6" />
           </span>
           <h1 className="font-display text-4xl md:text-5xl tracking-tighter">PAINEL ADMIN</h1>
@@ -347,9 +358,12 @@ Chaves obrigatórias: id (slug em minúsculo), title, category, version, rating 
               {allValid ? (
                 <><CheckCircle2 className="size-5" /> <span className="font-bold">Tudo válido</span></>
               ) : (
-                <><AlertCircle className="size-5 text-destructive" /> <span className="text-destructive font-bold">Corrija os erros antes de gerar</span></>
+                <><AlertCircle className="size-5 text-destructive" /> 
+                 <span className="text-destructive font-bold">Corrija os erros antes de gerar</span></>
               )}
-              <span className="ml-auto text-xs font-mono">{list.length} add-on{list.length > 1 ? "s" : ""}</span>
+              <span className="ml-auto text-xs font-mono">
+                {list.length} add-on{list.length > 1 ? "s" : ""}
+              </span>
             </div>
 
             <div className="space-y-5">
@@ -362,16 +376,35 @@ Chaves obrigatórias: id (slug em minúsculo), title, category, version, rating 
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <div className="flex items-center gap-3 flex-wrap">
                         <span className="font-display text-2xl">#{i + 1}</span>
-                        {v.ok && !isDupe && <span className="brut-tag brut-tag-lime"><CheckCircle2 className="size-3" /> Válido</span>}
-                        {isDupe && <span className="brut-tag bg-destructive text-paper border-destructive"><AlertCircle className="size-3" /> ID duplicado</span>}
-                        {!v.ok && <span className="brut-tag bg-destructive text-paper border-destructive"><AlertCircle className="size-3" /> {Object.keys(errors).length} erro(s)</span>}
+                        {v.ok && !isDupe && (
+                          <span className="brut-tag brut-tag-lime">
+                            <CheckCircle2 className="size-3" /> Válido
+                          </span>
+                        )}
+                        {isDupe && (
+                          <span className="brut-tag bg-destructive text-paper border-destructive">
+                            <AlertCircle className="size-3" /> ID duplicado
+                          </span>
+                        )}
+                        {!v.ok && (
+                          <span className="brut-tag bg-destructive text-paper border-destructive">
+                            <AlertCircle className="size-3" /> {Object.keys(errors).length} erro(s)
+                          </span>
+                        )}
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => sendToDiscord(i)} disabled={!v.ok || !settings.webhookUrl} className="inline-flex items-center gap-1.5 px-3 h-8 rounded-md border-2 border-ink bg-indigo-600 text-paper text-xs font-bold uppercase brut-press disabled:opacity-40">
+                        <button 
+                          onClick={() => sendToDiscord(i)} 
+                          disabled={!v.ok || !settings.webhookUrl} 
+                          className="inline-flex items-center gap-1.5 px-3 h-8 rounded-md border-2 border-ink bg-indigo-600 text-paper text-xs font-bold uppercase brut-press disabled:opacity-40"
+                        >
                           <Send className="size-3.5" /> Discord
                         </button>
                         {list.length > 1 && (
-                          <button onClick={() => setList(p => p.filter((_, x) => x !== i))} className="text-destructive hover:text-red-600 p-2 border-2 border-transparent hover:border-destructive rounded">
+                          <button 
+                            onClick={() => setList(p => p.filter((_, x) => x !== i))} 
+                            className="text-destructive hover:text-red-600 p-2 border-2 border-transparent hover:border-destructive rounded"
+                          >
                             <Trash2 className="size-4" />
                           </button>
                         )}
@@ -418,11 +451,13 @@ Chaves obrigatórias: id (slug em minúsculo), title, category, version, rating 
           <div className="brut p-6 space-y-4 bg-paper">
             <div className="flex items-center gap-3 mb-2">
               <Sparkles className="size-6 text-orange" />
-              <h2 className="font-display text-2xl">Assistente IA (NVIDIA NIM)</h2>
+              <h2 className="font-display text-2xl">Assistente IA (NVIDIA)</h2>
             </div>
-            <p className="text-muted-foreground text-sm mb-4">Descreva o addon e a IA preencherá todos os campos automaticamente. Certifique-se de configurar a API Key em Config.</p>
+            <p className="text-muted-foreground text-sm mb-4">
+              Descreva o addon e a IA preencherá todos os campos automaticamente.
+            </p>
             
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-[10px] uppercase tracking-widest font-mono font-bold">Modelo</label>
                 <select
@@ -434,37 +469,61 @@ Chaves obrigatórias: id (slug em minúsculo), title, category, version, rating 
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest font-mono font-bold">Descrição do Addon</label>
-                <input
+                <label className="text-[10px] uppercase tracking-widest font-mono font-bold">
+                  Descreva o Addon
+                </label>
+                <textarea
                   value={aiPrompt}
                   onChange={(e) => setAiPrompt(e.target.value)}
-                  placeholder="Ex: Um addon de espadas mágicas com efeitos de fogo, versão 1.20..."
-                  className="w-full h-10 px-3 rounded-md bg-input border-2 border-ink text-sm"
+                  placeholder="Ex: Um addon de espadas mágicas com efeitos de fogo e gelo, versão 1.20, feito pelo autor FireMaster..."
+                  rows={4}
+                  className="w-full px-3 py-2 rounded-md bg-input border-2 border-ink text-sm resize-none"
                 />
               </div>
             </div>
 
             <button
               onClick={askAI}
-              disabled={aiLoading || !settings.apiKey}
-              className="inline-flex items-center gap-2 px-5 h-11 rounded-md bg-purple-600 border-2 border-ink text-paper font-bold uppercase text-sm brut-press disabled:opacity-40"
+              disabled={aiLoading}
+              className="inline-flex items-center gap-2 px-5 h-11 rounded-md bg-purple-600 border-2 border-ink text-paper font-bold uppercase text-sm brut-press disabled:opacity-40 hover:bg-purple-700"
             >
               {aiLoading ? <Loader2 className="size-4 animate-spin" /> : <Bot className="size-4" />}
               {aiLoading ? "Gerando..." : "Gerar com IA"}
             </button>
-            {aiError && <p className="text-destructive text-xs font-mono">{aiError}</p>}
+            {aiError && (
+              <div className="p-3 rounded bg-destructive/10 border border-destructive">
+                <p className="text-destructive text-sm">{aiError}</p>
+              </div>
+            )}
           </div>
         )}
 
         {/* TAB: SETTINGS */}
         {activeTab === "settings" && (
           <div className="brut p-6 space-y-4 bg-paper">
-            <h2 className="font-display text-2xl flex items-center gap-2"><Settings className="size-5" /> Configurações</h2>
+            <h2 className="font-display text-2xl flex items-center gap-2">
+              <Settings className="size-5" /> Configurações
+            </h2>
             <div className="space-y-3">
-              <Field icon={<KeyIcon />} label="NVIDIA API Key" value={settings.apiKey} onChange={(v) => setSettings(s => ({ ...s, apiKey: v }))} hint="Chave da plataforma NGC / NIM" />
-              <Field icon={<LinkIcon />} label="Discord Webhook URL" value={settings.webhookUrl} onChange={(v) => setSettings(s => ({ ...s, webhookUrl: v }))} hint="Cole a URL completa do webhook" />
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase tracking-widest font-mono font-bold">
+                  Discord Webhook URL
+                </label>
+                <input
+                  type="text"
+                  value={settings.webhookUrl}
+                  onChange={(e) => setSettings(s => ({ ...s, webhookUrl: e.target.value }))}
+                  placeholder="https://discord.com/api/webhooks/..."
+                  className="w-full h-10 px-3 rounded-md bg-input border-2 border-ink text-sm"
+                />
+                <p className="text-[10px] text-muted-foreground/80">
+                  Cole a URL completa do webhook do Discord
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">💡 Suas configurações são salvas automaticamente no navegador.</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              💡 As configurações são salvas automaticamente no navegador.
+            </p>
           </div>
         )}
 
@@ -473,6 +532,12 @@ Chaves obrigatórias: id (slug em minúsculo), title, category, version, rating 
           <>
             {output && <Preview title="JSON" content={output} onCopy={() => navigator.clipboard.writeText(output)} onDownload={() => downloadFile(output, "addons.json", "application/json")} />}
             {csvOut && <Preview title="CSV" content={csvOut} onCopy={() => navigator.clipboard.writeText(csvOut)} onDownload={() => downloadFile(csvOut, "addons.csv", "text/csv;charset=utf-8")} />}
+            {!output && !csvOut && (
+              <div className="brut p-8 text-center">
+                <Eye className="size-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-muted-foreground">Gere o JSON ou CSV primeiro na aba Editor</p>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -485,10 +550,16 @@ function Preview({ title, content, onCopy, onDownload }: { title: string; conten
   return (
     <div className="mt-8 brut p-5">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <div className="font-display text-2xl flex items-center gap-2"><Eye className="size-5" /> PREVIEW {title}</div>
+        <div className="font-display text-2xl flex items-center gap-2">
+          <Eye className="size-5" /> PREVIEW {title}
+        </div>
         <div className="flex gap-2">
-          <button onClick={onCopy} className="inline-flex items-center gap-2 px-3 h-9 rounded-md border-2 border-ink bg-paper text-xs font-bold uppercase brut-press"><Copy className="size-3.5" /> Copiar</button>
-          <button onClick={onDownload} className="inline-flex items-center gap-2 px-3 h-9 rounded-md border-2 border-ink bg-orange text-paper text-xs font-bold uppercase brut-press"><DownloadIcon className="size-3.5" /> Baixar</button>
+          <button onClick={onCopy} className="inline-flex items-center gap-2 px-3 h-9 rounded-md border-2 border-ink bg-paper text-xs font-bold uppercase brut-press">
+            <Copy className="size-3.5" /> Copiar
+          </button>
+          <button onClick={onDownload} className="inline-flex items-center gap-2 px-3 h-9 rounded-md border-2 border-ink bg-orange text-paper text-xs font-bold uppercase brut-press">
+            <DownloadIcon className="size-3.5" /> Baixar
+          </button>
         </div>
       </div>
       <pre className="text-xs font-mono bg-ink text-paper rounded-md p-4 overflow-auto max-h-[500px] border-2 border-ink">
@@ -498,7 +569,17 @@ function Preview({ title, content, onCopy, onDownload }: { title: string; conten
   );
 }
 
-type FieldProps = { icon: React.ReactNode; label: string; value: string; onChange: (v: string) => void; type?: string; className?: string; hint?: string; error?: string; };
+type FieldProps = { 
+  icon: React.ReactNode; 
+  label: string; 
+  value: string; 
+  onChange: (v: string) => void; 
+  type?: string; 
+  className?: string; 
+  hint?: string; 
+  error?: string; 
+};
+
 function Field({ icon, label, value, onChange, type = "text", className = "", hint, error }: FieldProps) {
   return (
     <label className={`block ${className}`}>
@@ -506,8 +587,12 @@ function Field({ icon, label, value, onChange, type = "text", className = "", hi
         <span className="size-3 [&>svg]:size-3">{icon}</span> {label}
       </span>
       <input
-        type={type} value={value} onChange={(e) => onChange(e.target.value)}
-        className={`mt-1 w-full h-10 px-3 rounded-md bg-input border-2 outline-none text-sm transition ${error ? "border-destructive bg-destructive/5" : "border-ink focus:bg-paper"}`}
+        type={type} 
+        value={value} 
+        onChange={(e) => onChange(e.target.value)}
+        className={`mt-1 w-full h-10 px-3 rounded-md bg-input border-2 outline-none text-sm transition ${
+          error ? "border-destructive bg-destructive/5" : "border-ink focus:bg-paper"
+        }`}
       />
       {error
         ? <span className="text-[10px] text-destructive mt-1 flex items-center gap-1"><AlertCircle className="size-3" /> {error}</span>
@@ -516,24 +601,31 @@ function Field({ icon, label, value, onChange, type = "text", className = "", hi
   );
 }
 
-function TextArea({ icon, label, value, onChange, error }: { icon: React.ReactNode; label: string; value: string; onChange: (v: string) => void; error?: string }) {
+function TextArea({ icon, label, value, onChange, error }: { 
+  icon: React.ReactNode; 
+  label: string; 
+  value: string; 
+  onChange: (v: string) => void; 
+  error?: string 
+}) {
   return (
     <label className="block md:col-span-2">
       <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-mono font-bold">
         <span className="size-3 [&>svg]:size-3">{icon}</span> {label}
       </span>
       <textarea
-        value={value} onChange={(e) => onChange(e.target.value)} rows={4}
-        className={`mt-1 w-full px-3 py-2 rounded-md bg-input border-2 outline-none text-sm ${error ? "border-destructive bg-destructive/5" : "border-ink focus:bg-paper"}`}
+        value={value} 
+        onChange={(e) => onChange(e.target.value)} 
+        rows={4}
+        className={`mt-1 w-full px-3 py-2 rounded-md bg-input border-2 outline-none text-sm ${
+          error ? "border-destructive bg-destructive/5" : "border-ink focus:bg-paper"
+        }`}
       />
-      {error && <span className="text-[10px] text-destructive mt-1 flex items-center gap-1"><AlertCircle className="size-3" /> {error}</span>}
+      {error && (
+        <span className="text-[10px] text-destructive mt-1 flex items-center gap-1">
+          <AlertCircle className="size-3" /> {error}
+        </span>
+      )}
     </label>
-  );
-}
-
-// Small icon component for Settings tab
-function KeyIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3"><circle cx="8" cy="15" r="5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
   );
 }
