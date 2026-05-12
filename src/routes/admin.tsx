@@ -37,8 +37,7 @@ const empty: Draft = {
 };
 
 // Pegar variáveis de ambiente (Cloudflare Workers expõe no globalThis)
-const NVIDIA_API_KEY = (globalThis as any).NVIDIA_API_KEY || "";
-const DISCORD_WEBHOOK = (globalThis as any).DISCORD_WEBHOOK || "";
+const NVIDIA_API_KEY = (typeof window !== "undefined" && (window as any).NVIDIA_API_KEY) || "";
 
 const NVIDIA_MODELS = [
   "google/gemma-4-31b-it",
@@ -52,11 +51,6 @@ const NVIDIA_MODELS = [
   "deepseek-ai/deepseek-r1-distill-llama-70b",
   "nvidia/usdcode-llama3-70b-instruct"
 ];
-
-type Settings = {
-  model: string;
-  webhookUrl: string;  // ainda mantida para configuração local (mas o envio vai pelo endpoint)
-};
 
 // ── Helpers ────────────────────────────────────────────────────────
 function slugify(s: string) {
@@ -126,20 +120,31 @@ function Admin() {
   const [extractUrl, setExtractUrl] = useState("");
   const [extracting, setExtracting] = useState(false);
 
-  const [settings, setSettings] = useState<Settings>({
-    model: localStorage.getItem("nvidia_model") || NVIDIA_MODELS[0],
-    webhookUrl: localStorage.getItem("discord_webhook") || ""
+  // Webhook salvo no localStorage (sem frescura de endpoint)
+  const [webhookUrl, setWebhookUrl] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("discord_webhook") || "";
+    }
+    return "";
   });
 
   // AI State
+  const [aiModel, setAiModel] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("nvidia_model") || NVIDIA_MODELS[0];
+    }
+    return NVIDIA_MODELS[0];
+  });
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
   useEffect(() => {
-    localStorage.setItem("nvidia_model", settings.model);
-    localStorage.setItem("discord_webhook", settings.webhookUrl);
-  }, [settings]);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("nvidia_model", aiModel);
+      localStorage.setItem("discord_webhook", webhookUrl);
+    }
+  }, [aiModel, webhookUrl]);
 
   useEffect(() => {
     if (notification) {
@@ -197,7 +202,6 @@ function Admin() {
         throw new Error(err.error || "Erro desconhecido");
       }
       const data = await res.json();
-      // Preencher o primeiro draft da lista (ou criar um novo)
       setList(prev => {
         const updated = [...prev];
         if (updated.length === 0) {
@@ -214,7 +218,6 @@ function Admin() {
         current.downloads = data.downloads || current.downloads;
         current.version = data.version || current.version;
         current.id = slugify(current.title);
-        // Se tiver youtubeId, preencher (caso o scraper forneça)
         if (data.youtubeId) current.youtubeId = data.youtubeId;
         updated[0] = current;
         return updated;
@@ -227,32 +230,65 @@ function Admin() {
     }
   };
 
-  // ── Envio ao Discord via endpoint seguro ────────────────────────
+  // ── Envio ao Discord DIRETO (webhook do localStorage) ─────────
   const sendToDiscord = async (idx: number) => {
     const v = validations[idx];
     if (!v.ok) {
       setNotification({ type: "error", msg: "Dados inválidos." });
       return;
     }
+    if (!webhookUrl.trim()) {
+      setNotification({ type: "error", msg: "Configure o Webhook do Discord nas Configurações." });
+      return;
+    }
+
+    const addon = v.data;
+    const pageUrl = `${window.location.origin}/addon/${addon.id}`;
+
+    const payload = {
+      content: "📦 **Novo Addon Publicado!**",
+      embeds: [{
+        title: addon.title,
+        description: addon.short,
+        url: pageUrl,
+        color: 0xff5500,
+        image: { url: addon.image || "https://placehold.co/600x300/111/fff?text=No+Image" },
+        fields: [
+          { name: "🔖 Categoria", value: addon.category, inline: true },
+          { name: "📦 Versão", value: addon.version, inline: true },
+          { name: "⭐ Avaliação", value: `${addon.rating}/5`, inline: true },
+          { name: "📥 Downloads", value: String(addon.downloads), inline: true },
+          { name: "👤 Autor", value: addon.author || "Desconhecido", inline: true },
+          { name: "🏷️ Tags", value: addon.tags.join(", "), inline: false },
+          { name: "🔗 Link", value: `[Acessar página](${pageUrl})`, inline: false },
+        ],
+        footer: { text: `Mine Addons News • ${new Date(addon.date).toLocaleDateString("pt-BR")}` }
+      }]
+    };
+
     try {
-      const response = await fetch("/api/notify-discord", {
+      const response = await fetch(webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(v.data),
+        body: JSON.stringify(payload),
       });
       if (response.ok) {
         setNotification({ type: "success", msg: "✅ Enviado para o Discord!" });
       } else {
-        const text = await response.text();
-        setNotification({ type: "error", msg: `❌ ${text}` });
+        const errText = await response.text();
+        setNotification({ type: "error", msg: `❌ Falha: ${errText.substring(0, 100)}` });
       }
-    } catch (err) {
-      setNotification({ type: "error", msg: "❌ Erro de rede ao comunicar com o servidor." });
+    } catch (err: any) {
+      setNotification({ type: "error", msg: "❌ Erro de rede." });
     }
   };
 
-  // ── IA Assistant ──────────────────────────────────────────────────
+  // ── IA Assistant (opcional) ──────────────────────────────────
   const askAI = async () => {
+    if (!NVIDIA_API_KEY) {
+      setNotification({ type: "error", msg: "Chave da NVIDIA não configurada." });
+      return;
+    }
     if (!aiPrompt.trim()) {
       setNotification({ type: "error", msg: "Digite uma descrição para o addon." });
       return;
@@ -267,7 +303,7 @@ function Admin() {
           "Authorization": `Bearer ${NVIDIA_API_KEY}`
         },
         body: JSON.stringify({
-          model: settings.model,
+          model: aiModel,
           messages: [
             {
               role: "system",
@@ -467,7 +503,7 @@ function Admin() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-[10px] uppercase tracking-widest font-mono font-bold">Modelo</label>
-                <select value={settings.model} onChange={(e) => setSettings(s => ({ ...s, model: e.target.value }))} className="w-full h-10 px-3 rounded-md bg-input border-2 border-ink text-sm">
+                <select value={aiModel} onChange={(e) => setAiModel(e.target.value)} className="w-full h-10 px-3 rounded-md bg-input border-2 border-ink text-sm">
                   {NVIDIA_MODELS.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
@@ -490,11 +526,31 @@ function Admin() {
             <h2 className="font-display text-2xl flex items-center gap-2"><Settings className="size-5" /> Configurações</h2>
             <div className="space-y-3">
               <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest font-mono font-bold">Discord Webhook (não usado para envio direto, somente referência)</label>
-                <input type="text" value={settings.webhookUrl} onChange={(e) => setSettings(s => ({ ...s, webhookUrl: e.target.value }))} placeholder="URL do webhook (opcional aqui, o envio usa endpoint seguro)" className="w-full h-10 px-3 rounded-md bg-input border-2 border-ink text-sm" />
+                <label className="text-[10px] uppercase tracking-widest font-mono font-bold">
+                  Discord Webhook URL
+                </label>
+                <input
+                  type="text"
+                  value={webhookUrl}
+                  onChange={(e) => {
+                    setWebhookUrl(e.target.value);
+                  }}
+                  placeholder="https://discord.com/api/webhooks/..."
+                  className="w-full h-10 px-3 rounded-md bg-input border-2 border-ink text-sm"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Cole a URL do webhook e clique em "Discord" no editor. Fica salvo apenas no seu navegador.
+                </p>
               </div>
+              {NVIDIA_API_KEY && (
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase tracking-widest font-mono font-bold">
+                    NVIDIA API Key (já configurada no ambiente)
+                  </label>
+                  <input type="password" value={NVIDIA_API_KEY} readOnly className="w-full h-10 px-3 rounded-md bg-input border-2 border-ink text-sm opacity-50" />
+                </div>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground mt-2">💡 As configurações são salvas automaticamente no navegador. O envio ao Discord agora é feito por endpoint seguro e não expõe o webhook no client.</p>
           </div>
         )}
 
@@ -516,7 +572,7 @@ function Admin() {
   );
 }
 
-// ── Subcomponentes (inalterados) ──────────────────────────────────
+// ── Subcomponentes ──────────────────────────────────────────────────
 function Preview({ title, content, onCopy, onDownload }: { title: string; content: string; onCopy: () => void; onDownload: () => void }) {
   return (
     <div className="mt-8 brut p-5">
