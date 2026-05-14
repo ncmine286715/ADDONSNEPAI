@@ -1,8 +1,8 @@
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Search, ArrowDown, Boxes, Tag, Calendar, Star, TrendingUp,
-  Filter, Sparkles, Flame, Zap, Heart, Mic,
+  Filter, Sparkles, Flame, Zap, Heart, Mic, X, Clock, Loader2, Eye,
 } from "lucide-react";
 import { ADDONS, type Addon } from "@/lib/addons";
 import { Header } from "@/components/Header";
@@ -14,9 +14,14 @@ import { TopDownloads } from "@/components/TopDownloads";
 import { RecentAddons } from "@/components/RecentAddons";
 import { RandomAddon } from "@/components/RandomAddon";
 import { ViewToggle } from "@/components/ViewToggle";
+import { SkeletonCard } from "@/components/SkeletonCard";
+import { SkeletonCardList } from "@/components/SkeletonCardList";
 import { useVoiceSearch } from "@/hooks/useVoiceSearch";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useSearchHistory } from "@/hooks/useSearchHistory";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { getTopDownloads, getRecentAddons } from "@/lib/stats";
+import { Tooltip } from "@/components/Tooltip";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -31,7 +36,7 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type Sort = "recent" | "rating" | "downloads";
+type Sort = "recent" | "rating" | "downloads" | "views";
 
 function Index() {
   const [loading, setLoading] = useState(true);
@@ -41,14 +46,31 @@ function Index() {
   const [cat, setCat] = useState<string>("all");
   const [sort, setSort] = useState<Sort>("recent");
   const [view, setView] = useState<"grid" | "list">("grid");
-  
+  const [showHistory, setShowHistory] = useState(false);
+
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const historyRef = useRef<HTMLDivElement>(null);
   const { isListening, startListening } = useVoiceSearch(setQ);
-  
+  const { history, add, remove, clear } = useSearchHistory();
+
   useKeyboardShortcuts({
     onSearchFocus: () => searchInputRef.current?.focus(),
-    onEscape: () => setQ(""),
+    onEscape: () => {
+      setQ("");
+      setShowHistory(false);
+    },
   });
+
+  // Fechar histórico ao clicar fora
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (historyRef.current && !historyRef.current.contains(e.target as Node)) {
+        setShowHistory(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   const categories = useMemo(() => {
     const set = new Set(addons.map((a) => a.category));
@@ -69,14 +91,47 @@ function Index() {
     });
     if (sort === "rating") out = [...out].sort((a, b) => b.rating - a.rating);
     else if (sort === "downloads") out = [...out].sort((a, b) => b.downloads - a.downloads);
+    else if (sort === "views") {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("man.views.v1") : null;
+      const views: Record<string, number> = raw ? JSON.parse(raw) : {};
+      out = [...out].sort((a, b) => (views[b.id] ?? 0) - (views[a.id] ?? 0));
+    }
     else out = [...out].sort((a, b) => +new Date(b.date) - +new Date(a.date));
     return out;
   }, [addons, q, cat, sort]);
 
   const accents: Array<"orange" | "lime" | "violet"> = ["orange", "lime", "violet"];
-  
+
   const topDownloaded = getTopDownloads(3);
   const recentOnes = getRecentAddons(1);
+
+  const { displayed, loaderRef, hasMore } = useInfiniteScroll(filtered, 12);
+
+  const handleSearch = (term: string) => {
+    setQ(term);
+    add(term);
+    setShowHistory(false);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQ(e.target.value);
+    if (e.target.value.trim()) {
+      setShowHistory(false);
+    }
+  };
+
+  const handleInputFocus = () => {
+    if (!q.trim() && history.length > 0) {
+      setShowHistory(true);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && q.trim()) {
+      add(q.trim());
+      setShowHistory(false);
+    }
+  };
 
   return (
     <div className="w-full overflow-x-hidden">
@@ -149,12 +204,14 @@ function Index() {
         <div className="mx-auto max-w-7xl">
           <div className="brut p-3 md:p-5 mb-6 md:mb-8 md:sticky md:top-16 z-30 bg-paper w-full overflow-x-hidden">
             <div className="flex flex-col gap-3">
-              <div className="relative w-full">
+              <div className="relative w-full" ref={historyRef}>
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4" />
                 <input
                   ref={searchInputRef}
                   value={q}
-                  onChange={(e) => setQ(e.target.value)}
+                  onChange={handleInputChange}
+                  onFocus={handleInputFocus}
+                  onKeyDown={handleKeyDown}
                   placeholder="Buscar... (Ctrl+K)"
                   className="w-full h-10 md:h-11 pl-9 md:pl-10 pr-10 md:pr-12 rounded-md bg-input border-2 border-ink focus:bg-paper outline-none text-sm font-medium"
                 />
@@ -164,8 +221,40 @@ function Index() {
                 >
                   <Mic className="size-3 md:size-4" />
                 </button>
+
+                {/* Search History Dropdown */}
+                {showHistory && history.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-paper border-2 border-ink rounded-md shadow-[6px_6px_0_0_var(--ink)] z-50 overflow-hidden">
+                    <div className="flex items-center justify-between px-3 py-2 border-b-2 border-ink bg-secondary/30">
+                      <span className="text-[10px] uppercase tracking-widest font-mono font-bold flex items-center gap-1">
+                        <Clock className="size-3" /> Buscas recentes
+                      </span>
+                      <button onClick={clear} className="text-[10px] text-destructive font-bold uppercase hover:underline">
+                        Limpar
+                      </button>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto">
+                      {history.map((term) => (
+                        <div key={term} className="flex items-center justify-between px-3 py-2 hover:bg-secondary cursor-pointer group border-b border-ink/10 last:border-0">
+                          <button
+                            onClick={() => handleSearch(term)}
+                            className="flex-1 text-left text-sm font-medium truncate"
+                          >
+                            {term}
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); remove(term); }}
+                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 rounded"
+                          >
+                            <X className="size-3 text-destructive" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-              
+
               <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
                 {categories.map((c) => (
                   <button
@@ -179,7 +268,7 @@ function Index() {
                   </button>
                 ))}
               </div>
-              
+
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <Filter className="size-3 md:size-4" />
@@ -191,20 +280,38 @@ function Index() {
                     <option value="recent">Recentes</option>
                     <option value="rating">Avaliação</option>
                     <option value="downloads">Downloads</option>
+                    <option value="views">Mais vistos</option>
                   </select>
                 </div>
-                <ViewToggle view={view} onChange={setView} />
+                <Tooltip text="Alternar visualização" position="bottom">
+                  <ViewToggle view={view} onChange={setView} />
+                </Tooltip>
               </div>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2 md:gap-3 text-[8px] md:text-[10px] tracking-widest uppercase font-mono text-muted-foreground">
               <span className="flex items-center gap-1"><Calendar className="size-2 md:size-3" /> Data</span>
               <span className="flex items-center gap-1"><Star className="size-2 md:size-3" /> Avaliação</span>
               <span className="flex items-center gap-1"><TrendingUp className="size-2 md:size-3" /> Downloads</span>
+              <span className="flex items-center gap-1"><Eye className="size-2 md:size-3" /> Visualizações</span>
               <span className="ml-auto text-ink font-bold text-[10px] md:text-xs">{filtered.length} resultado(s)</span>
             </div>
           </div>
 
-          {filtered.length === 0 ? (
+          {loading || addons.length === 0 ? (
+            view === "grid" ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <SkeletonCard key={i} />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2 md:space-y-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <SkeletonCardList key={i} />
+                ))}
+              </div>
+            )
+          ) : filtered.length === 0 ? (
             <div className="brut py-16 md:py-24 text-center">
               <Boxes className="size-10 md:size-12 mx-auto mb-3" />
               <div className="font-display text-2xl md:text-3xl">Nada encontrado</div>
@@ -213,17 +320,38 @@ function Index() {
               </div>
             </div>
           ) : view === "grid" ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-              {filtered.map((a, i) => (
-                <AddonCard key={a.id} addon={a} accent={accents[i % accents.length]} />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                {displayed.map((a, i) => (
+                  <AddonCard key={a.id} addon={a} accent={accents[i % accents.length]} />
+                ))}
+              </div>
+              {/* Infinite scroll loader */}
+              {hasMore && (
+                <div ref={loaderRef} className="py-8 flex justify-center">
+                  <div className="brut p-3 flex items-center gap-3 animate-pulse">
+                    <Loader2 className="size-5 animate-spin" />
+                    <span className="text-xs font-mono font-bold uppercase tracking-wider">Carregando mais...</span>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
-            <div className="space-y-2 md:space-y-3">
-              {filtered.map((a) => (
-                <AddonCardList key={a.id} addon={a} />
-              ))}
-            </div>
+            <>
+              <div className="space-y-2 md:space-y-3">
+                {displayed.map((a) => (
+                  <AddonCardList key={a.id} addon={a} />
+                ))}
+              </div>
+              {hasMore && (
+                <div ref={loaderRef} className="py-8 flex justify-center">
+                  <div className="brut p-3 flex items-center gap-3 animate-pulse">
+                    <Loader2 className="size-5 animate-spin" />
+                    <span className="text-xs font-mono font-bold uppercase tracking-wider">Carregando mais...</span>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>

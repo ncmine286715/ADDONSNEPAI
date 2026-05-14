@@ -3,6 +3,12 @@ import { useEffect, useState, useCallback } from "react";
 const KEY = "man.favorites.v1";
 const VIEWS_KEY = "man.views.v1";
 
+function haptic() {
+  if (typeof navigator !== "undefined" && navigator.vibrate) {
+    navigator.vibrate(50);
+  }
+}
+
 function readSet(): Set<string> {
   if (typeof window === "undefined") return new Set();
   try {
@@ -34,6 +40,7 @@ export function useFavorites() {
   }, []);
 
   const toggle = useCallback((id: string) => {
+    haptic();
     const next = new Set(readSet());
     if (next.has(id)) next.delete(id); else next.add(id);
     writeSet(next);

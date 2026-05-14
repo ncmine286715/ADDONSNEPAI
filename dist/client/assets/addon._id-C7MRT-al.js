@@ -1,0 +1,1 @@
+import{j as e}from"./index-DP2oiGwP.js";import{H as s}from"./Header-BP6dTO2n.js";const m=({error:r})=>e.jsxs(e.Fragment,{children:[e.jsx(s,{}),e.jsx("div",{className:"mx-auto max-w-3xl px-4 py-24 text-center",children:e.jsx("p",{className:"text-destructive",children:r.message})})]});export{m as errorComponent};

@@ -20,6 +20,18 @@ export function getStats() {
   const totalDownloads = ADDONS.reduce((sum, a) => sum + a.downloads, 0);
   const avgRating = ADDONS.reduce((sum, a) => sum + a.rating, 0) / ADDONS.length;
   const categories = new Set(ADDONS.map(a => a.category));
-  
+
   return { totalDownloads, avgRating, categoriesCount: categories.size, totalAddons: ADDONS.length };
+}
+
+export function getMostViewed(limit?: number): Addon[] {
+  if (typeof window === "undefined") return limit ? [] : [...ADDONS];
+  try {
+    const raw = localStorage.getItem("man.views.v1");
+    const views: Record<string, number> = raw ? JSON.parse(raw) : {};
+    const sorted = [...ADDONS].sort((a, b) => (views[b.id] ?? 0) - (views[a.id] ?? 0));
+    return limit ? sorted.slice(0, limit) : sorted;
+  } catch { 
+    return limit ? [] : [...ADDONS]; 
+  }
 }

@@ -1,6 +1,13 @@
 import { Share2, Check } from "lucide-react";
 import { useState } from "react";
 import type { Addon } from "@/lib/addons";
+import { showToast } from "@/hooks/useToast";
+
+function haptic() {
+  if (typeof navigator !== "undefined" && navigator.vibrate) {
+    navigator.vibrate(50);
+  }
+}
 
 export function ShareButton({ addon, variant = "icon" }: { addon: Addon; variant?: "icon" | "full" }) {
   const [copied, setCopied] = useState(false);
@@ -12,9 +19,11 @@ export function ShareButton({ addon, variant = "icon" }: { addon: Addon; variant
   };
 
   const handleShare = async () => {
+    haptic();
     if (navigator.share) {
       try {
         await navigator.share(shareData);
+        showToast("success", "Link compartilhado!");
       } catch (err) {
         console.log("Erro ao compartilhar:", err);
       }
@@ -22,11 +31,11 @@ export function ShareButton({ addon, variant = "icon" }: { addon: Addon; variant
       const shareText = `${shareData.title}\n\n${shareData.text}\n\n🔗 ${shareData.url}`;
       await navigator.clipboard.writeText(shareText);
       setCopied(true);
+      showToast("success", "Link copiado para a área de transferência!");
       setTimeout(() => setCopied(false), 2000);
     }
   };
 
-  // Versão só ícone (para cards)
   if (variant === "icon") {
     return (
       <button
@@ -41,7 +50,6 @@ export function ShareButton({ addon, variant = "icon" }: { addon: Addon; variant
     );
   }
 
-  // Versão completa com texto (para página do add-on)
   return (
     <button
       onClick={handleShare}
