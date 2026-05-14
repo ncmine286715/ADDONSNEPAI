@@ -16,6 +16,10 @@ import { RandomAddon } from "@/components/RandomAddon";
 import { ViewToggle } from "@/components/ViewToggle";
 import { SkeletonCard } from "@/components/SkeletonCard";
 import { SkeletonCardList } from "@/components/SkeletonCardList";
+import { DiscordWidget } from "@/components/DiscordWidget";
+import { TopLikedAddons } from "@/components/TopLikedAddons";
+import { WishlistShare } from "@/components/WishlistShare";
+import { FollowedAuthorsSection } from "@/components/FollowedAuthorsSection";
 import { useVoiceSearch } from "@/hooks/useVoiceSearch";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
@@ -61,7 +65,6 @@ function Index() {
     },
   });
 
-  // Fechar histórico ao clicar fora
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (historyRef.current && !historyRef.current.contains(e.target as Node)) {
@@ -115,15 +118,11 @@ function Index() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setQ(e.target.value);
-    if (e.target.value.trim()) {
-      setShowHistory(false);
-    }
+    if (e.target.value.trim()) setShowHistory(false);
   };
 
   const handleInputFocus = () => {
-    if (!q.trim() && history.length > 0) {
-      setShowHistory(true);
-    }
+    if (!q.trim() && history.length > 0) setShowHistory(true);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -185,19 +184,23 @@ function Index() {
         </div>
       </section>
 
-      {/* TOP DOWNLOADS & RECENTES */}
+      {/* TOP DOWNLOADS & RECENTES & SOCIAL */}
       <section className="w-full px-4 py-8 md:py-12 border-y-2 border-ink bg-secondary/30">
         <div className="mx-auto max-w-7xl">
           <div className="flex items-center gap-2 mb-6">
             <Flame className="size-6 text-orange" />
-            <h2 className="font-display text-2xl md:text-3xl tracking-tight">🔥 Mais Baixados da Semana</h2>
+            <h2 className="font-display text-2xl md:text-3xl tracking-tight">🔥 Destaques</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <TopDownloads addons={topDownloaded} />
             <RecentAddons addons={recentOnes} />
+            <TopLikedAddons />
           </div>
         </div>
       </section>
+
+      {/* CRIADORES SEGUIDOS */}
+      <FollowedAuthorsSection />
 
       {/* GRID */}
       <section id="grid" className="relative w-full px-4 py-6 md:py-12">
@@ -222,7 +225,6 @@ function Index() {
                   <Mic className="size-3 md:size-4" />
                 </button>
 
-                {/* Search History Dropdown */}
                 {showHistory && history.length > 0 && (
                   <div className="absolute top-full left-0 right-0 mt-2 bg-paper border-2 border-ink rounded-md shadow-[6px_6px_0_0_var(--ink)] z-50 overflow-hidden">
                     <div className="flex items-center justify-between px-3 py-2 border-b-2 border-ink bg-secondary/30">
@@ -236,16 +238,10 @@ function Index() {
                     <div className="max-h-48 overflow-y-auto">
                       {history.map((term) => (
                         <div key={term} className="flex items-center justify-between px-3 py-2 hover:bg-secondary cursor-pointer group border-b border-ink/10 last:border-0">
-                          <button
-                            onClick={() => handleSearch(term)}
-                            className="flex-1 text-left text-sm font-medium truncate"
-                          >
+                          <button onClick={() => handleSearch(term)} className="flex-1 text-left text-sm font-medium truncate">
                             {term}
                           </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); remove(term); }}
-                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 rounded"
-                          >
+                          <button onClick={(e) => { e.stopPropagation(); remove(term); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 rounded">
                             <X className="size-3 text-destructive" />
                           </button>
                         </div>
@@ -300,15 +296,11 @@ function Index() {
           {loading || addons.length === 0 ? (
             view === "grid" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <SkeletonCard key={i} />
-                ))}
+                {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
               </div>
             ) : (
               <div className="space-y-2 md:space-y-3">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <SkeletonCardList key={i} />
-                ))}
+                {Array.from({ length: 6 }).map((_, i) => <SkeletonCardList key={i} />)}
               </div>
             )
           ) : filtered.length === 0 ? (
@@ -326,7 +318,6 @@ function Index() {
                   <AddonCard key={a.id} addon={a} accent={accents[i % accents.length]} />
                 ))}
               </div>
-              {/* Infinite scroll loader */}
               {hasMore && (
                 <div ref={loaderRef} className="py-8 flex justify-center">
                   <div className="brut p-3 flex items-center gap-3 animate-pulse">
@@ -339,9 +330,7 @@ function Index() {
           ) : (
             <>
               <div className="space-y-2 md:space-y-3">
-                {displayed.map((a) => (
-                  <AddonCardList key={a.id} addon={a} />
-                ))}
+                {displayed.map((a) => <AddonCardList key={a.id} addon={a} />)}
               </div>
               {hasMore && (
                 <div ref={loaderRef} className="py-8 flex justify-center">
@@ -353,6 +342,16 @@ function Index() {
               )}
             </>
           )}
+        </div>
+      </section>
+
+      {/* SOCIAL SIDEBAR */}
+      <section className="w-full px-4 py-8 md:py-12 border-t-2 border-ink bg-secondary/30">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <DiscordWidget />
+            <WishlistShare />
+          </div>
         </div>
       </section>
 
