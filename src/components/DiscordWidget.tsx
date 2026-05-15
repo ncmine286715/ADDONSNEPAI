@@ -1,6 +1,6 @@
 import { MessageCircle } from "lucide-react";
 
-// Substitua pelo ID do seu servidor Discord
+// ID numérico do servidor (obtido nas configurações do Discord > Widget)
 const DISCORD_SERVER_ID = "1501873290413604929";
 
 export function DiscordWidget() {
@@ -21,7 +21,7 @@ export function DiscordWidget() {
         title="Discord Widget"
       />
       <a
-        href={`https://discord.gg/${DISCORD_SERVER_ID}`}
+        href={`https://discord.gg/7vHysxHrTr`}
         target="_blank"
         rel="noreferrer"
         className="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-md bg-indigo-600 text-paper border-2 border-ink font-bold uppercase text-xs brut-press w-full justify-center"
