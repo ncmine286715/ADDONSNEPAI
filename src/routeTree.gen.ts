@@ -14,6 +14,7 @@ import { Route as NcmineRouteImport } from './routes/ncmine'
 import { Route as FavoritosRouteImport } from './routes/favoritos'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AutorNomeRouteImport } from './routes/autor.$nome'
 import { Route as ApiNotifyDiscordRouteImport } from './routes/api/notify-discord'
 import { Route as AddonIdRouteImport } from './routes/addon.$id'
 
@@ -42,6 +43,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AutorNomeRoute = AutorNomeRouteImport.update({
+  id: '/autor/$nome',
+  path: '/autor/$nome',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiNotifyDiscordRoute = ApiNotifyDiscordRouteImport.update({
   id: '/api/notify-discord',
   path: '/api/notify-discord',
@@ -61,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/addon/$id': typeof AddonIdRoute
   '/api/notify-discord': typeof ApiNotifyDiscordRoute
+  '/autor/$nome': typeof AutorNomeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,6 +77,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/addon/$id': typeof AddonIdRoute
   '/api/notify-discord': typeof ApiNotifyDiscordRoute
+  '/autor/$nome': typeof AutorNomeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +88,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/addon/$id': typeof AddonIdRoute
   '/api/notify-discord': typeof ApiNotifyDiscordRoute
+  '/autor/$nome': typeof AutorNomeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,6 +100,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/addon/$id'
     | '/api/notify-discord'
+    | '/autor/$nome'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -100,6 +110,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/addon/$id'
     | '/api/notify-discord'
+    | '/autor/$nome'
   id:
     | '__root__'
     | '/'
@@ -109,6 +120,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/addon/$id'
     | '/api/notify-discord'
+    | '/autor/$nome'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -119,6 +131,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   AddonIdRoute: typeof AddonIdRoute
   ApiNotifyDiscordRoute: typeof ApiNotifyDiscordRoute
+  AutorNomeRoute: typeof AutorNomeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -158,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/autor/$nome': {
+      id: '/autor/$nome'
+      path: '/autor/$nome'
+      fullPath: '/autor/$nome'
+      preLoaderRoute: typeof AutorNomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/notify-discord': {
       id: '/api/notify-discord'
       path: '/api/notify-discord'
@@ -183,6 +203,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   AddonIdRoute: AddonIdRoute,
   ApiNotifyDiscordRoute: ApiNotifyDiscordRoute,
+  AutorNomeRoute: AutorNomeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

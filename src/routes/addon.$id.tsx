@@ -1,14 +1,28 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Link, createFileRoute, notFound } from "@tanstack/react-router";
 import {
   Star, Calendar, User, ArrowLeft, Download, BookOpen, Tag,
   Play, ListOrdered, Hash, FileBox, Sparkles, Heart, Eye, Flame,
+  TrendingUp, Box
 } from "lucide-react";
 import { ADDONS, getAddon } from "@/lib/addons";
 import { Header } from "@/components/Header";
 import { YouTubeModal } from "@/components/YouTubeModal";
 import { useFavorites, useViewCount } from "@/lib/favorites";
+import { useReactions } from "@/lib/reactions";
+import { useViewHistory } from "@/lib/viewHistory";
 import { SITE_URL, SITE_NAME } from "@/lib/site";
+import { Tooltip } from "@/components/Tooltip";
+import { AddonCard } from "@/components/AddonCard";
+
+const SCROLL_KEY = "man.scrollPos.v1";
+
+const isUpdatedToday = (dateStr: string) => {
+  const today = new Date();
+  const date = new Date(dateStr);
+  return date.toDateString() === today.toDateString();
+};
 
 export const Route = createFileRoute("/addon/$id")({
   loader: ({ params }) => {
@@ -93,25 +107,63 @@ function AddonPage() {
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const { isFav, toggle } = useFavorites();
   const { count, bump } = useViewCount(addon.id);
+  const { react, getReactionCount } = useReactions();
+  const { addView } = useViewHistory();
   const fav = isFav(addon.id);
+
+  const REACTIONS: Array<<"❤️" | "🔥" | "😍" | "💩"> = ["❤️", "🔥", "😍", "💩"];
+
+  const relatedByAuthor = ADDONS.filter(a => a.author === addon.author && a.id !== addon.id).slice(0, 3);
+  const relatedByCategory = ADDONS.filter(a => a.category === addon.category && a.id !== addon.id && a.author !== addon.author).slice(0, 3);
+  const accents: Array<<"orange" | "lime" | "violet"> = ["orange", "lime", "violet"];
+
+  useEffect(() => {
+    const scrollPos = sessionStorage.getItem(`${SCROLL_KEY}_${addon.id}`);
+    if (scrollPos) {
+      window.scrollTo(0, parseInt(scrollPos, 10));
+    }
+    addView(addon);
+  }, [addon, addView]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      sessionStorage.setItem(`${SCROLL_KEY}_${addon.id}`, String(window.scrollY));
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [addon.id]);
 
   return (
     <>
       <Header />
       <article className="mx-auto max-w-5xl px-4 py-8 relative">
-        <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wider hover:text-orange mb-6">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wider hover:text-orange mb-6 transition"
+        >
           <ArrowLeft className="size-4" /> Voltar
         </Link>
 
         {/* HERO */}
-        <div className="relative brut overflow-hidden aspect-[21/9] mb-6 p-0">
+        <div className="relative brut overflow-hidden aspect-[21/9] mb-6 p-0 shadow-[6px_6px_0_0_var(--ink)]">
           <img src={addon.image} alt={addon.title} className="absolute inset-0 w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/40 to-transparent" />
+          {isUpdatedToday(addon.date) && (
+            <div className="absolute top-4 right-4 brut-tag bg-orange text-xs font-bold shadow-[3px_3px_0_0_var(--ink)]">
+              Atualizado hoje
+            </div>
+          )}
           <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 text-paper">
             <div className="flex flex-wrap items-center gap-2 mb-3">
               <span className="brut-tag brut-tag-accent"><Tag className="size-3" /> {addon.category}</span>
               <span className="brut-tag bg-paper"><Hash className="size-3" /> v{addon.version}</span>
-              <span className="brut-tag bg-paper"><User className="size-3" /> {addon.author}</span>
+              <Link
+                to="/autor/$nome"
+                params={{ nome: encodeURIComponent(addon.author) }}
+                className="brut-tag bg-paper hover:bg-orange transition"
+              >
+                <User className="size-3" /> {addon.author}
+              </Link>
             </div>
             <h1 className="font-display text-5xl md:text-7xl leading-[0.9] tracking-tight">{addon.title}</h1>
             <p className="mt-3 max-w-2xl text-paper/80 text-base md:text-lg">{addon.short}</p>
@@ -119,11 +171,11 @@ function AddonPage() {
         </div>
 
         {/* MEGA DOWNLOAD CTA */}
-        <div className="brut p-6 md:p-8 mb-8 bg-orange relative overflow-hidden">
+        <div className="brut p-6 md:p-8 mb-8 bg-orange relative overflow-hidden shadow-[6px_6px_0_0_var(--ink)]">
           <div className="absolute -top-10 -right-10 size-40 rounded-full border-[3px] border-ink bg-paper opacity-30" />
           <div className="relative flex flex-col md:flex-row gap-6 items-center justify-between">
             <div>
-              <div className="inline-flex items-center gap-2 brut-tag bg-ink text-paper">
+              <div className="inline-flex items-center gap-2 brut-tag bg-ink text-paper mb-2">
                 <Sparkles className="size-3" /> Pronto pra jogar
               </div>
               <div className="font-display text-4xl md:text-5xl mt-2 tracking-tight">BAIXA AGORA</div>
@@ -136,37 +188,57 @@ function AddonPage() {
               </div>
             </div>
             <div className="flex flex-col sm:flex-row items-center gap-3">
-              <a
-                href={addon.downloadUrl}
-                target="_blank"
-                rel="noreferrer"
-                onClick={bump}
-                className="btn-download mega"
-                aria-label={`Download ${addon.title}`}
-              >
-                <Download className="size-7" strokeWidth={3} /> Download
-              </a>
-              <button
-                onClick={() => toggle(addon.id)}
-                className={`size-14 rounded-md border-[3px] border-ink grid place-items-center transition ${
-                  fav ? "bg-ink" : "bg-paper"
-                }`}
-                style={{ boxShadow: "6px 6px 0 0 var(--ink)" }}
-                aria-label={fav ? "Remover dos favoritos" : "Salvar"}
-              >
-                <Heart className={`size-6 ${fav ? "fill-orange text-orange" : ""}`} strokeWidth={2.5} />
-              </button>
-              {addon.youtubeId && (
-                <button
-                  onClick={() => setTutorialOpen(true)}
-                  className="inline-flex items-center gap-2 px-5 py-3 rounded-md border-[3px] border-ink bg-paper font-display text-lg uppercase brut-press"
-                  style={{ boxShadow: "6px 6px 0 0 var(--ink)" }}
+              <Tooltip text="Baixar add-on" position="bottom">
+                <a
+                  href={addon.downloadUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={bump}
+                  className="btn-download mega"
+                  aria-label={`Download ${addon.title}`}
                 >
-                  <Play className="size-5 fill-ink" /> Tutorial
+                  <Download className="size-7" strokeWidth={3} /> Download
+                </a>
+              </Tooltip>
+              <Tooltip text={fav ? "Remover dos favoritos" : "Salvar nos favoritos"} position="bottom">
+                <button
+                  onClick={() => toggle(addon.id)}
+                  className={`size-14 rounded-md border-[3px] border-ink grid place-items-center transition shadow-[6px_6px_0_0_var(--ink)] active:shadow-[2px_2px_0_0_var(--ink)] active:translate-x-[4px] active:translate-y-[4px] ${
+                    fav ? "bg-ink" : "bg-paper"
+                  }`}
+                  aria-label={fav ? "Remover dos favoritos" : "Salvar"}
+                >
+                  <Heart className={`size-6 ${fav ? "fill-orange text-orange" : ""}`} strokeWidth={2.5} />
                 </button>
+              </Tooltip>
+              {addon.youtubeId && (
+                <Tooltip text="Ver tutorial" position="bottom">
+                  <button
+                    onClick={() => setTutorialOpen(true)}
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-md border-[3px] border-ink bg-paper font-display text-lg uppercase brut-press shadow-[6px_6px_0_0_var(--ink)] active:shadow-[2px_2px_0_0_var(--ink)] active:translate-x-[4px] active:translate-y-[4px] hover:bg-secondary transition"
+                  >
+                    <Play className="size-5 fill-ink" /> Tutorial
+                  </button>
+                </Tooltip>
               )}
             </div>
           </div>
+        </div>
+
+        {/* Reactions */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {REACTIONS.map((emoji) => (
+            <button
+              key={emoji}
+              onClick={() => react(addon.id, emoji)}
+              className={`px-3 py-2 rounded-md border-2 border-ink font-display text-sm transition shadow-[3px_3px_0_0_var(--ink)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] ${
+                getReactionCount(addon.id, emoji) > 0 ? "bg-orange" : "bg-paper hover:bg-secondary"
+              }`}
+            >
+              <span className="mr-1">{emoji}</span>
+              {getReactionCount(addon.id, emoji) > 0 && `(${getReactionCount(addon.id, emoji)})`}
+            </button>
+          ))}
         </div>
 
         {/* Meta cards */}
@@ -178,17 +250,17 @@ function AddonPage() {
         </div>
 
         {/* Description */}
-        <section className="brut p-6 md:p-8 mb-8">
+        <section className="brut p-6 md:p-8 mb-8 shadow-[4px_4px_0_0_var(--ink)]">
           <h2 className="font-display text-3xl md:text-4xl mb-4 flex items-center gap-3">
-            <span className="size-10 rounded-md bg-orange border-2 border-ink grid place-items-center">
+            <span className="size-10 rounded-md bg-orange border-2 border-ink grid place-items-center shadow-[2px_2px_0_0_var(--ink)]">
               <BookOpen className="size-5" />
             </span>
             Descrição
           </h2>
-          <p className="text-foreground/85 leading-relaxed whitespace-pre-line">{addon.description}</p>
+          <p className="text-foreground/85 leading-relaxed whitespace-pre-line text-sm md:text-base">{addon.description}</p>
           <div className="mt-5 flex flex-wrap gap-2">
             {addon.tags.map((t: string) => (
-              <span key={t} className="brut-tag">
+              <span key={t} className="brut-tag shadow-[2px_2px_0_0_var(--ink)]">
                 <Tag className="size-3" /> {t}
               </span>
             ))}
@@ -196,9 +268,9 @@ function AddonPage() {
         </section>
 
         {/* Tutorial steps */}
-        <section className="brut p-6 md:p-8 mb-8 bg-secondary">
+        <section className="brut p-6 md:p-8 mb-8 bg-secondary shadow-[4px_4px_0_0_var(--ink)]">
           <h2 className="font-display text-3xl md:text-4xl mb-5 flex items-center gap-3">
-            <span className="size-10 rounded-md bg-violet text-paper border-2 border-ink grid place-items-center">
+            <span className="size-10 rounded-md bg-violet text-paper border-2 border-ink grid place-items-center shadow-[2px_2px_0_0_var(--ink)]">
               <ListOrdered className="size-5" />
             </span>
             Como instalar
@@ -211,23 +283,51 @@ function AddonPage() {
               'Ative "Experimentos" se o add-on pedir.',
               "Entre no mundo. Pronto.",
             ].map((s, i) => (
-              <li key={i} className="flex gap-4 items-start brut bg-paper p-3">
-                <span className="size-9 shrink-0 rounded-md bg-orange border-2 border-ink font-display text-lg grid place-items-center">
+              <li key={i} className="flex gap-4 items-start brut bg-paper p-3 border-2 border-ink shadow-[3px_3px_0_0_var(--ink)]">
+                <span className="size-9 shrink-0 rounded-md bg-orange border-2 border-ink font-display text-lg grid place-items-center shadow-[2px_2px_0_0_var(--ink)]">
                   {i + 1}
                 </span>
-                <span className="pt-1.5">{s}</span>
+                <span className="pt-1.5 text-sm md:text-base">{s}</span>
               </li>
             ))}
           </ol>
           {addon.youtubeId && (
             <button
               onClick={() => setTutorialOpen(true)}
-              className="mt-6 inline-flex items-center gap-2 px-4 py-2 brut bg-ink text-paper font-bold uppercase tracking-wider text-sm brut-press"
+              className="mt-6 inline-flex items-center gap-2 px-4 py-2 brut bg-ink text-paper font-bold uppercase tracking-wider text-sm brut-press shadow-[4px_4px_0_0_var(--ink)] active:shadow-none active:translate-x-[4px] active:translate-y-[4px] hover:bg-ink/90 transition"
             >
               <Play className="size-4 fill-paper" /> Ver vídeo tutorial
             </button>
           )}
         </section>
+
+        {/* Related: same author */}
+        {relatedByAuthor.length > 0 && (
+          <section className="mb-10">
+            <h2 className="font-display text-2xl md:text-3xl mb-5 flex items-center gap-2">
+              <User className="size-6 text-orange" /> Mais de {addon.author}
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              {relatedByAuthor.map((a, i) => (
+                <AddonCard key={a.id} addon={a} accent={accents[i % accents.length]} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Related: same category */}
+        {relatedByCategory.length > 0 && (
+          <section className="mb-10">
+            <h2 className="font-display text-2xl md:text-3xl mb-5 flex items-center gap-2">
+              <Box className="size-6 text-lime" /> Similares em {addon.category}
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              {relatedByCategory.map((a, i) => (
+                <AddonCard key={a.id} addon={a} accent={accents[(i + 1) % accents.length]} />
+              ))}
+            </div>
+          </section>
+        )}
 
         <div className="text-center pb-16">
           <a
@@ -242,9 +342,7 @@ function AddonPage() {
         </div>
       </article>
 
-      {tutorialOpen && addon.youtubeId && (
-        <YouTubeModal id={addon.youtubeId} onClose={() => setTutorialOpen(false)} />
-      )}
+      {tutorialOpen && addon.youtubeId && <YouTubeModal id={addon.youtubeId} onClose={() => setTutorialOpen(false)} />}
     </>
   );
 }
@@ -254,7 +352,7 @@ function Meta({
 }: { icon: React.ReactNode; label: string; value: string; accent?: "paper" | "lime" | "violet" }) {
   const bg = accent === "lime" ? "bg-lime" : accent === "violet" ? "bg-violet text-paper" : "bg-paper";
   return (
-    <div className={`brut px-4 py-3 ${bg}`}>
+    <div className={`brut px-4 py-3 ${bg} shadow-[3px_3px_0_0_var(--ink)]`}>
       <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-mono">
         {icon}
         {label}
@@ -263,5 +361,3 @@ function Meta({
     </div>
   );
 }
-
-void ADDONS;

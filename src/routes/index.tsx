@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Search, ArrowDown, Boxes, Tag, Calendar, Star, TrendingUp,
   Filter, Sparkles, Flame, Zap, Heart, Mic, X, Clock, Loader2, Eye,
+  User, Scale, ArrowUpDown
 } from "lucide-react";
 import { ADDONS, type Addon } from "@/lib/addons";
 import { Header } from "@/components/Header";
@@ -20,12 +21,16 @@ import { DiscordWidget } from "@/components/DiscordWidget";
 import { TopLikedAddons } from "@/components/TopLikedAddons";
 import { WishlistShare } from "@/components/WishlistShare";
 import { FollowedAuthorsSection } from "@/components/FollowedAuthorsSection";
+import { RecentlyViewed } from "@/components/RecentlyViewed";
 import { useVoiceSearch } from "@/hooks/useVoiceSearch";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+import { useHomeScrollRestoration } from "@/hooks/useHomeScrollRestoration";
 import { getTopDownloads, getRecentAddons } from "@/lib/stats";
 import { Tooltip } from "@/components/Tooltip";
+import { useComparison } from "@/lib/comparison";
+import { ComparisonModal } from "@/components/ComparisonModal";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -40,22 +45,26 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type Sort = "recent" | "rating" | "downloads" | "views";
+type Sort = "recent" | "rating" | "downloads" | "views" | "name-asc" | "name-desc";
 
 function Index() {
+  useHomeScrollRestoration();
   const [loading, setLoading] = useState(true);
   const addons: Addon[] = ADDONS;
+  const { ids, clear } = useComparison();
 
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string>("all");
-  const [sort, setSort] = useState<Sort>("recent");
-  const [view, setView] = useState<"grid" | "list">("grid");
+  const [author, setAuthor] = useState<string>("all");
+  const [sort, setSort] = useState<<Sort>("recent");
+  const [view, setView] = useState<<"grid" | "list">("grid");
   const [showHistory, setShowHistory] = useState(false);
+  const [showCompareModal, setShowCompareModal] = useState(false);
 
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const historyRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<<HTMLInputElement>(null);
+  const historyRef = useRef<<HTMLDivElement>(null);
   const { isListening, startListening } = useVoiceSearch(setQ);
-  const { history, add, remove, clear } = useSearchHistory();
+  const { history, add, remove, clear: clearHistory } = useSearchHistory();
 
   useKeyboardShortcuts({
     onSearchFocus: () => searchInputRef.current?.focus(),
@@ -80,9 +89,15 @@ function Index() {
     return ["all", ...Array.from(set)];
   }, [addons]);
 
+  const authors = useMemo(() => {
+    const set = new Set(addons.map((a) => a.author));
+    return ["all", ...Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"))];
+  }, [addons]);
+
   const filtered = useMemo(() => {
     let out = addons.filter((a) => {
       if (cat !== "all" && a.category !== cat) return false;
+      if (author !== "all" && a.author !== author) return false;
       if (!q) return true;
       const s = q.toLowerCase();
       return (
@@ -99,11 +114,13 @@ function Index() {
       const views: Record<string, number> = raw ? JSON.parse(raw) : {};
       out = [...out].sort((a, b) => (views[b.id] ?? 0) - (views[a.id] ?? 0));
     }
+    else if (sort === "name-asc") out = [...out].sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
+    else if (sort === "name-desc") out = [...out].sort((a, b) => b.title.localeCompare(a.title, "pt-BR"));
     else out = [...out].sort((a, b) => +new Date(b.date) - +new Date(a.date));
     return out;
-  }, [addons, q, cat, sort]);
+  }, [addons, q, cat, author, sort]);
 
-  const accents: Array<"orange" | "lime" | "violet"> = ["orange", "lime", "violet"];
+  const accents: Array<<"orange" | "lime" | "violet"> = ["orange", "lime", "violet"];
 
   const topDownloaded = getTopDownloads(3);
   const recentOnes = getRecentAddons(1);
@@ -116,7 +133,7 @@ function Index() {
     setShowHistory(false);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<<HTMLInputElement>) => {
     setQ(e.target.value);
     if (e.target.value.trim()) setShowHistory(false);
   };
@@ -125,7 +142,7 @@ function Index() {
     if (!q.trim() && history.length > 0) setShowHistory(true);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<<HTMLInputElement>) => {
     if (e.key === "Enter" && q.trim()) {
       add(q.trim());
       setShowHistory(false);
@@ -199,14 +216,15 @@ function Index() {
         </div>
       </section>
 
-      {/* CRIADORES SEGUIDOS */}
       <FollowedAuthorsSection />
+      <RecentlyViewed />
 
       {/* GRID */}
       <section id="grid" className="relative w-full px-4 py-6 md:py-12">
         <div className="mx-auto max-w-7xl">
-          <div className="brut p-3 md:p-5 mb-6 md:mb-8 md:sticky md:top-16 z-30 bg-paper w-full overflow-x-hidden">
+          <div className="brut p-3 md:p-5 mb-6 md:mb-8 md:sticky md:top-16 z-30 bg-paper w-full overflow-x-hidden shadow-[4px_4px_0_0_var(--ink)]">
             <div className="flex flex-col gap-3">
+              {/* Search */}
               <div className="relative w-full" ref={historyRef}>
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4" />
                 <input
@@ -231,7 +249,7 @@ function Index() {
                       <span className="text-[10px] uppercase tracking-widest font-mono font-bold flex items-center gap-1">
                         <Clock className="size-3" /> Buscas recentes
                       </span>
-                      <button onClick={clear} className="text-[10px] text-destructive font-bold uppercase hover:underline">
+                      <button onClick={clearHistory} className="text-[10px] text-destructive font-bold uppercase hover:underline">
                         Limpar
                       </button>
                     </div>
@@ -251,13 +269,14 @@ function Index() {
                 )}
               </div>
 
+              {/* Categories */}
               <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
                 {categories.map((c) => (
                   <button
                     key={c}
                     onClick={() => setCat(c)}
                     className={`shrink-0 h-9 md:h-11 px-3 md:px-4 rounded-md text-[10px] md:text-xs font-bold uppercase tracking-wider whitespace-nowrap border-2 border-ink transition flex items-center gap-1 md:gap-1.5 ${
-                      cat === c ? "bg-orange" : "bg-paper hover:bg-secondary"
+                      cat === c ? "bg-orange shadow-[2px_2px_0_0_var(--ink)]" : "bg-paper hover:bg-secondary"
                     }`}
                   >
                     <Tag className="size-2.5 md:size-3" /> {c === "all" ? "Tudo" : c}
@@ -265,25 +284,52 @@ function Index() {
                 ))}
               </div>
 
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Filter className="size-3 md:size-4" />
+              {/* Filters row */}
+              <div className="flex flex-col md:flex-row gap-2 md:items-center justify-between">
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                  <Filter className="size-3 md:size-4 shrink-0" />
                   <select
                     value={sort}
                     onChange={(e) => setSort(e.target.value as Sort)}
-                    className="h-9 md:h-11 px-2 md:px-3 rounded-md bg-input border-2 border-ink text-[10px] md:text-sm font-bold uppercase tracking-wider"
+                    className="h-9 md:h-11 px-2 md:px-3 rounded-md bg-input border-2 border-ink text-[10px] md:text-sm font-bold uppercase tracking-wider shrink-0"
                   >
                     <option value="recent">Recentes</option>
                     <option value="rating">Avaliação</option>
                     <option value="downloads">Downloads</option>
                     <option value="views">Mais vistos</option>
+                    <option value="name-asc">Nome A-Z</option>
+                    <option value="name-desc">Nome Z-A</option>
+                  </select>
+
+                  <User className="size-3 md:size-4 shrink-0 ml-1" />
+                  <select
+                    value={author}
+                    onChange={(e) => setAuthor(e.target.value)}
+                    className="h-9 md:h-11 px-2 md:px-3 rounded-md bg-input border-2 border-ink text-[10px] md:text-sm font-bold uppercase tracking-wider shrink-0 min-w-[140px]"
+                  >
+                    <option value="all">Todos autores</option>
+                    {authors.filter(a => a !== "all").map((a) => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
                   </select>
                 </div>
-                <Tooltip text="Alternar visualização" position="bottom">
-                  <ViewToggle view={view} onChange={setView} />
-                </Tooltip>
+
+                <div className="flex items-center gap-2">
+                  {ids.length > 0 && (
+                    <button
+                      onClick={() => setShowCompareModal(true)}
+                      className="h-9 md:h-11 px-3 rounded-md bg-orange border-2 border-ink text-[10px] md:text-xs font-bold uppercase tracking-wider shadow-[2px_2px_0_0_var(--ink)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all flex items-center gap-1.5"
+                    >
+                      <Scale className="size-3.5" /> Comparar ({ids.length})
+                    </button>
+                  )}
+                  <Tooltip text="Alternar visualização" position="bottom">
+                    <ViewToggle view={view} onChange={setView} />
+                  </Tooltip>
+                </div>
               </div>
             </div>
+
             <div className="mt-3 flex flex-wrap items-center gap-2 md:gap-3 text-[8px] md:text-[10px] tracking-widest uppercase font-mono text-muted-foreground">
               <span className="flex items-center gap-1"><Calendar className="size-2 md:size-3" /> Data</span>
               <span className="flex items-center gap-1"><Star className="size-2 md:size-3" /> Avaliação</span>
@@ -304,11 +350,11 @@ function Index() {
               </div>
             )
           ) : filtered.length === 0 ? (
-            <div className="brut py-16 md:py-24 text-center">
+            <div className="brut py-16 md:py-24 text-center shadow-[6px_6px_0_0_var(--ink)]">
               <Boxes className="size-10 md:size-12 mx-auto mb-3" />
               <div className="font-display text-2xl md:text-3xl">Nada encontrado</div>
               <div className="text-muted-foreground text-xs md:text-sm mt-2">
-                {addons.length === 0 ? "Use o painel para gerar e adicionar." : "Tente outra busca."}
+                {addons.length === 0 ? "Use o painel para gerar e adicionar." : "Tente outra busca ou filtro."}
               </div>
             </div>
           ) : view === "grid" ? (
@@ -320,7 +366,7 @@ function Index() {
               </div>
               {hasMore && (
                 <div ref={loaderRef} className="py-8 flex justify-center">
-                  <div className="brut p-3 flex items-center gap-3 animate-pulse">
+                  <div className="brut p-3 flex items-center gap-3 animate-pulse shadow-[4px_4px_0_0_var(--ink)]">
                     <Loader2 className="size-5 animate-spin" />
                     <span className="text-xs font-mono font-bold uppercase tracking-wider">Carregando mais...</span>
                   </div>
@@ -334,7 +380,7 @@ function Index() {
               </div>
               {hasMore && (
                 <div ref={loaderRef} className="py-8 flex justify-center">
-                  <div className="brut p-3 flex items-center gap-3 animate-pulse">
+                  <div className="brut p-3 flex items-center gap-3 animate-pulse shadow-[4px_4px_0_0_var(--ink)]">
                     <Loader2 className="size-5 animate-spin" />
                     <span className="text-xs font-mono font-bold uppercase tracking-wider">Carregando mais...</span>
                   </div>
@@ -355,6 +401,7 @@ function Index() {
         </div>
       </section>
 
+      <ComparisonModal addons={ADDONS.filter(a => ids.includes(a.id))} onClose={() => setShowCompareModal(false)} />
       <Footer />
     </div>
   );
