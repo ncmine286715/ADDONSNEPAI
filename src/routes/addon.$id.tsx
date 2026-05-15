@@ -110,11 +110,11 @@ function AddonPage() {
   const { addView } = useViewHistory();
   const fav = isFav(addon.id);
 
-  const REACTIONS: Array<<"❤️" | "🔥" | "😍" | "💩"> = ["❤️", "🔥", "😍", "💩"];
+  const REACTIONS: Array<"heart" | "fire" | "smile" | "poop"> = ["heart", "fire", "smile", "poop"];
 
   const relatedByAuthor = ADDONS.filter(a => a.author === addon.author && a.id !== addon.id).slice(0, 3);
   const relatedByCategory = ADDONS.filter(a => a.category === addon.category && a.id !== addon.id && a.author !== addon.author).slice(0, 3);
-  const accents: Array<<"orange" | "lime" | "violet"> = ["orange", "lime", "violet"];
+  const accents: Array<"orange" | "lime" | "violet"> = ["orange", "lime", "violet"];
 
   useEffect(() => {
     const scrollPos = sessionStorage.getItem(`${SCROLL_KEY}_${addon.id}`);
@@ -229,13 +229,13 @@ function AddonPage() {
           {REACTIONS.map((emoji) => (
             <button
               key={emoji}
-              onClick={() => react(addon.id, emoji)}
+              onClick={() => react(addon.id, emoji as any)}
               className={`px-3 py-2 rounded-md border-2 border-ink font-display text-sm transition shadow-[3px_3px_0_0_var(--ink)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] ${
-                getReactionCount(addon.id, emoji) > 0 ? "bg-orange" : "bg-paper hover:bg-secondary"
+                getReactionCount(addon.id, emoji as any) > 0 ? "bg-orange" : "bg-paper hover:bg-secondary"
               }`}
             >
-              <span className="mr-1">{emoji}</span>
-              {getReactionCount(addon.id, emoji) > 0 && `(${getReactionCount(addon.id, emoji)})`}
+              <span className="mr-1">{emoji === "heart" ? "❤️" : emoji === "fire" ? "🔥" : emoji === "smile" ? "😍" : "💩"}</span>
+              {getReactionCount(addon.id, emoji as any) > 0 && `(${getReactionCount(addon.id, emoji as any)})`}
             </button>
           ))}
         </div>

@@ -2,8 +2,7 @@ import { useMemo, useState, useRef, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Search, ArrowDown, Boxes, Tag, Calendar, Star, TrendingUp,
-  Filter, Sparkles, Flame, Zap, Heart, Mic, X, Clock, Loader2, Eye,
-  User, Scale, ArrowUpDown
+  Filter, Sparkles, Flame, Zap, Heart, Mic, X, Clock, Loader2, Eye, User,
 } from "lucide-react";
 import { ADDONS, type Addon } from "@/lib/addons";
 import { Header } from "@/components/Header";
@@ -21,16 +20,14 @@ import { DiscordWidget } from "@/components/DiscordWidget";
 import { TopLikedAddons } from "@/components/TopLikedAddons";
 import { WishlistShare } from "@/components/WishlistShare";
 import { FollowedAuthorsSection } from "@/components/FollowedAuthorsSection";
-import { RecentlyViewed } from "@/components/RecentlyViewed";
 import { useVoiceSearch } from "@/hooks/useVoiceSearch";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
-import { useHomeScrollRestoration } from "@/hooks/useHomeScrollRestoration";
 import { getTopDownloads, getRecentAddons } from "@/lib/stats";
 import { Tooltip } from "@/components/Tooltip";
-import { useComparison } from "@/lib/comparison";
-import { ComparisonModal } from "@/components/ComparisonModal";
+import { useViewHistory } from "@/lib/viewHistory";
+import { useNewAddonNotification } from "@/lib/newAddonNotification";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -48,23 +45,22 @@ export const Route = createFileRoute("/")({
 type Sort = "recent" | "rating" | "downloads" | "views" | "name-asc" | "name-desc";
 
 function Index() {
-  useHomeScrollRestoration();
   const [loading, setLoading] = useState(true);
   const addons: Addon[] = ADDONS;
-  const { ids, clear } = useComparison();
 
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string>("all");
   const [author, setAuthor] = useState<string>("all");
-  const [sort, setSort] = useState<<Sort>("recent");
-  const [view, setView] = useState<<"grid" | "list">("grid");
+  const [sort, setSort] = useState<Sort>("recent");
+  const [view, setView] = useState<"grid" | "list">("grid");
   const [showHistory, setShowHistory] = useState(false);
-  const [showCompareModal, setShowCompareModal] = useState(false);
 
-  const searchInputRef = useRef<<HTMLInputElement>(null);
-  const historyRef = useRef<<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const historyRef = useRef<HTMLDivElement>(null);
   const { isListening, startListening } = useVoiceSearch(setQ);
-  const { history, add, remove, clear: clearHistory } = useSearchHistory();
+  const { history, add, remove, clear } = useSearchHistory();
+  const { getRecentAddons } = useViewHistory();
+  const { showNotification, updateLastVisit } = useNewAddonNotification();
 
   useKeyboardShortcuts({
     onSearchFocus: () => searchInputRef.current?.focus(),
@@ -120,7 +116,7 @@ function Index() {
     return out;
   }, [addons, q, cat, author, sort]);
 
-  const accents: Array<<"orange" | "lime" | "violet"> = ["orange", "lime", "violet"];
+  const accents: Array<"orange" | "lime" | "violet"> = ["orange", "lime", "violet"];
 
   const topDownloaded = getTopDownloads(3);
   const recentOnes = getRecentAddons(1);
@@ -133,7 +129,7 @@ function Index() {
     setShowHistory(false);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setQ(e.target.value);
     if (e.target.value.trim()) setShowHistory(false);
   };
@@ -142,7 +138,7 @@ function Index() {
     if (!q.trim() && history.length > 0) setShowHistory(true);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && q.trim()) {
       add(q.trim());
       setShowHistory(false);
@@ -217,7 +213,49 @@ function Index() {
       </section>
 
       <FollowedAuthorsSection />
-      <RecentlyViewed />
+
+      {/* Recently Viewed */}
+      {!loading && (
+        <section className="w-full px-4 py-6 md:py-8 border-t-2 border-ink bg-secondary/30">
+          <div className="mx-auto max-w-7xl">
+            <h3 className="font-display text-xl md:text-2xl mb-4 flex items-center gap-2">
+              <Clock className="size-5 text-orange" /> Vistos recentemente
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+              {getRecentAddons(addons).map((a) => (
+                <Link
+                  key={a.id}
+                  to="/addon/$id"
+                  params={{ id: a.id }}
+                  className="group brut p-2 hover:shadow-[4px_4px_0_0_var(--ink)] transition"
+                >
+                  <img src={a.image} alt={a.title} className="w-full aspect-[4/3] object-cover border-2 border-ink mb-2" />
+                  <div className="text-xs font-bold truncate">{a.title}</div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* New Addon Notification */}
+      {showNotification && (
+        <div className="fixed bottom-4 right-4 brut bg-orange border-2 border-ink p-4 rounded-md shadow-[6px_6px_0_0_var(--ink)] z-50 max-w-sm">
+          <div className="flex items-start gap-3">
+            <Sparkles className="size-5 text-ink shrink-0 mt-0.5" />
+            <div>
+              <div className="font-display text-lg">Novos add-ons!</div>
+              <p className="text-sm mt-1">Há novos add-ons desde sua última visita.</p>
+              <button
+                onClick={updateLastVisit}
+                className="mt-2 text-xs font-bold underline hover:opacity-70"
+              >
+                Entendi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* GRID */}
       <section id="grid" className="relative w-full px-4 py-6 md:py-12">
@@ -249,7 +287,7 @@ function Index() {
                       <span className="text-[10px] uppercase tracking-widest font-mono font-bold flex items-center gap-1">
                         <Clock className="size-3" /> Buscas recentes
                       </span>
-                      <button onClick={clearHistory} className="text-[10px] text-destructive font-bold uppercase hover:underline">
+                      <button onClick={clear} className="text-[10px] text-destructive font-bold uppercase hover:underline">
                         Limpar
                       </button>
                     </div>

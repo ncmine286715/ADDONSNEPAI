@@ -28,7 +28,7 @@ export function AddonCard({ addon, accent = "orange" }: { addon: Addon; accent?:
   const accentClass =
     accent === "lime" ? "bg-lime" : accent === "violet" ? "bg-violet text-paper" : "bg-orange";
 
-  const handleDownload = (e: React.MouseEvent<<HTMLAnchorElement>) => {
+  const handleDownload = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.stopPropagation();
     setIsDownloading(true);
     setTimeout(() => setIsDownloading(false), 1000);
@@ -45,7 +45,7 @@ export function AddonCard({ addon, accent = "orange" }: { addon: Addon; accent?:
     }
   };
 
-  const REACTIONS: Array<<"❤️" | "🔥" | "😍" | "💩"> = ["❤️", "🔥", "😍", "💩"];
+  const REACTIONS: Array<"heart" | "fire" | "smile" | "poop"> = ["heart", "fire", "smile", "poop"];
 
   return (
     <>

@@ -12,7 +12,7 @@ function AuthorPage() {
   const { nome } = Route.useParams();
   const decoded = decodeURIComponent(nome);
   const authorAddons = ADDONS.filter((a) => a.author.toLowerCase() === decoded.toLowerCase());
-  const accents: Array<<"orange" | "lime" | "violet"> = ["orange", "lime", "violet"];
+  const accents: Array<"orange" | "lime" | "violet"> = ["orange", "lime", "violet"];
 
   return (
     <div className="w-full overflow-x-hidden">
