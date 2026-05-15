@@ -16,22 +16,6 @@
     "youtubeId": "VDk8niB2Obw"
   },
   {
-    "id": "rise-and-survive-progressive-zombie-apocalypse",
-    "title": "Rise and Survive – Progressive Zombie Apocalypse.",
-    "category": "apocalipse",
-    "version": "1.0.0",
-    "rating": 5,
-    "downloads": 23112,
-    "date": "2026-05-09",
-    "image": "https://media.forgecdn.net/attachments/1480/110/1000216680-png.png",
-    "tags": ["apocalipse", "zumbi", "sobrevivencia"],
-    "short": "Rise and Survive is a progression-based apocalypse addon where zombies grow stronger every day.",
-    "description": "Evolving Zombies & Growing Difficulty\nA dynamic difficulty bar increases every day, boosting zombie spawn rates.\nEvery 8 days, zombies move faster, grow stronger, and may unlock new abilities.\nHigher difficulty = higher chance of zombies spawning with armor and weapons.\nUnique Zombie Classes - Each zombie type brings new threats, new behaviors, and new strategies:\nMiner Zombies – break blocks to reach you (faster on higher difficulty).\nBlock Placer Zombies – tower up, bridge, and chase you no matter how high you build.\nWitch Zombies – throw and drink potions.\nBomber Zombies – throw TNT (damage-only).\nEnder Zombies – teleport using ender pearls.\nJumpers – leap at you and onto blocks.\nCrawlers – crawl through small spaces.\nRevealers – scream to expose your location, then flee.\nSpitter - shoots spit from a distance.\nHorde Leaders\n\nGiant – jumps and summons fangs.\nTank – incredibly tough.\nNecromancer – summons more zombies.\nZombies can also spawn with various potion effects like Speed or Fire Resistance.\nAll vanilla hostile mobs are disabled, but their loot is obtainable by killing zombies.\nHorde & Blood Moon System\nBloodmoon occurs every 8 days\nHordes spawn randomly 15 blocks away, always aware of your location.\nHorde size scales with difficulty (customizable in settings).",
-    "downloadUrl": "https://1024terabox.com/s/1E9m21QwZ89QTF4g4GT7ejg",
-    "author": "Ranzie",
-    "youtubeId": "97u5yVJpYjY"
-  },
-  {
     "id": "thirst-on",
     "title": "Addon thirst on",
     "category": "dificuldade+",
