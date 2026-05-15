@@ -140,5 +140,21 @@
     "downloadUrl": "https://www.bedrockexplorer.com/@pickaxe-studios/morph-add-on-edition",
     "author": "Pickaxe Studios",
     "youtubeId": "9hMBnr3Mb3o"
+  },
+   {
+    "id": "addon-teste-001",
+    "title": "Addon Teste - Funciona?",
+    "category": "Teste",
+    "version": "1.0.0",
+    "rating": 5,
+    "downloads": 999,
+    "date": "2026-05-15",
+    "image": "https://placehold.co/600x400/FF8C00/white?text=ADDON+TESTE",
+    "tags": ["teste", "debug", "verificação"],
+    "short": "Este é um addon de teste para verificar se o site está exibindo novos conteúdos corretamente.",
+    "description": "Addon criado exclusivamente para testar a funcionalidade de exibição e atualização do catálogo. Se você está vendo isto, significa que o deploy funcionou e o JSON está sendo carregado corretamente.\n\n- Teste de exibição\n- Verificação de categorias\n- Debug de atualizações",
+    "downloadUrl": "https://example.com/download/teste-addon",
+    "author": "Equipe de Teste",
+    "youtubeId": "dQw4w9WgXcQ"
   }
 ]
