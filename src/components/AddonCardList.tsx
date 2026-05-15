@@ -124,4 +124,21 @@ export function AddonCardList({ addon }: { addon: Addon }) {
                 href={addon.downloadUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="size-8 rounded-md border-2 border-ink bg-orange grid place-items-center shadow
+                className="size-8 rounded-md border-2 border-ink bg-orange grid place-items-center shadow-[2px_2px_0_0_var(--ink)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px]"
+              >
+                <Download className="size-3.5" strokeWidth={3} />
+              </a>
+            </Tooltip>
+            {addon.youtubeId && (
+              <Tooltip text="Tutorial" position="top">
+                <button className="size-8 rounded-md border-2 border-ink bg-paper grid place-items-center hover:bg-secondary shadow-[2px_2px_0_0_var(--ink)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px]">
+                  <Play className="size-3.5 fill-ink" />
+                </button>
+              </Tooltip>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

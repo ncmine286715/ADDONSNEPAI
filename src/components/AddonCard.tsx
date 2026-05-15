@@ -38,8 +38,11 @@ export function AddonCard({ addon, accent = "orange" }: { addon: Addon; accent?:
 
   const handleCompare = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (inComparison) removeFromComparison(addon.id);
-    else addToComparison(addon.id);
+    if (inComparison) {
+      removeFromComparison(addon.id);
+    } else {
+      addToComparison(addon.id);
+    }
   };
 
   const REACTIONS: Array<<"❤️" | "🔥" | "😍" | "💩"> = ["❤️", "🔥", "😍", "💩"];
@@ -189,4 +192,18 @@ export function AddonCard({ addon, accent = "orange" }: { addon: Addon; accent?:
               <button
                 onClick={() => setTut(true)}
                 aria-label="Ver tutorial"
-                className="size-9 md:size-11 shrink-0 grid place-items-center
+                className="size-9 md:size-11 shrink-0 grid place-items-center rounded-md border-2 border-ink bg-paper hover:bg-orange transition shadow-[4px_4px_0_0_var(--ink)] active:shadow-[2px_2px_0_0_var(--ink)] active:translate-x-[2px] active:translate-y-[2px]"
+              >
+                <Play className="size-3.5 md:size-4 fill-ink" />
+              </button>
+            </Tooltip>
+          )}
+        </div>
+      </article>
+
+      {tut && addon.youtubeId && <YouTubeModal id={addon.youtubeId} onClose={() => setTut(false)} />}
+
+      {ids.length >= 2 && <ComparisonModal addons={ADDONS.filter(a => ids.includes(a.id))} onClose={() => {}} />}
+    </>
+  );
+}
