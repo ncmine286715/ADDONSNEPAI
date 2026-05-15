@@ -23,12 +23,11 @@ import { FollowedAuthorsSection } from "@/components/FollowedAuthorsSection";
 import { useVoiceSearch } from "@/hooks/useVoiceSearch";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
-import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { getTopDownloads, getRecentAddons as getRecentStats } from "@/lib/stats";
 import { Tooltip } from "@/components/Tooltip";
 import { useViewHistory } from "@/lib/viewHistory";
 import { useNewAddonNotification } from "@/lib/newAddonNotification";
-import { ComparisonModal } from "@/components/ComparisonModal"; // se não existir, comente esta linha e remova o modal
+// import { ComparisonModal } from "@/components/ComparisonModal"; // Comentado se não existir
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -122,9 +121,12 @@ function Index() {
   const accents: Array<"orange" | "lime" | "violet"> = ["orange", "lime", "violet"];
 
   const topDownloaded = getTopDownloads(3);
-  const recentOnes = getRecentStats(1); // ou getRecentStats(addons, 1) se a função pedir addons
+  const recentOnes = getRecentStats(1);
 
-  const { displayed, loaderRef, hasMore } = useInfiniteScroll(filtered, 12);
+  // 🔥 REMOVIDO O INFINITE SCROLL – agora exibe todos os addons de uma vez
+  const displayed = filtered; // todos os addons já filtrados
+  const hasMore = false;
+  const loaderRef = undefined;
 
   const handleSearch = (term: string) => {
     setQ(term);
@@ -399,35 +401,15 @@ function Index() {
               </div>
             </div>
           ) : view === "grid" ? (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-                {displayed.map((a, i) => (
-                  <AddonCard key={a.id} addon={a} accent={accents[i % accents.length]} />
-                ))}
-              </div>
-              {hasMore && (
-                <div ref={loaderRef} className="py-8 flex justify-center">
-                  <div className="brut p-3 flex items-center gap-3 animate-pulse shadow-[4px_4px_0_0_var(--ink)]">
-                    <Loader2 className="size-5 animate-spin" />
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">Carregando mais...</span>
-                  </div>
-                </div>
-              )}
-            </>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+              {displayed.map((a, i) => (
+                <AddonCard key={a.id} addon={a} accent={accents[i % accents.length]} />
+              ))}
+            </div>
           ) : (
-            <>
-              <div className="space-y-2 md:space-y-3">
-                {displayed.map((a) => <AddonCardList key={a.id} addon={a} />)}
-              </div>
-              {hasMore && (
-                <div ref={loaderRef} className="py-8 flex justify-center">
-                  <div className="brut p-3 flex items-center gap-3 animate-pulse shadow-[4px_4px_0_0_var(--ink)]">
-                    <Loader2 className="size-5 animate-spin" />
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider">Carregando mais...</span>
-                  </div>
-                </div>
-              )}
-            </>
+            <div className="space-y-2 md:space-y-3">
+              {displayed.map((a) => <AddonCardList key={a.id} addon={a} />)}
+            </div>
           )}
         </div>
       </section>
@@ -442,9 +424,16 @@ function Index() {
         </div>
       </section>
 
-      {/* ComparisonModal (comente se não existir) */}
+      {/* ComparisonModal (comentado se não existir) */}
       {showCompareModal && (
-        <ComparisonModal addons={ADDONS.filter(a => ids.includes(a.id))} onClose={() => setShowCompareModal(false)} />
+        // <ComparisonModal addons={ADDONS.filter(a => ids.includes(a.id))} onClose={() => setShowCompareModal(false)} />
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="brut bg-paper p-6 max-w-2xl w-full">
+            <h3 className="font-display text-2xl mb-4">Comparar Add-ons</h3>
+            <p className="text-sm text-muted-foreground mb-4">Funcionalidade em desenvolvimento.</p>
+            <button onClick={() => setShowCompareModal(false)} className="brut px-4 py-2">Fechar</button>
+          </div>
+        </div>
       )}
       <Footer />
     </div>
