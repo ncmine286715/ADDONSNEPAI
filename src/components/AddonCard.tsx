@@ -8,7 +8,6 @@ import { useComparison } from "@/lib/comparison";
 import { YouTubeModal } from "@/components/YouTubeModal";
 import { ShareButton } from "@/components/ShareButton";
 import { Tooltip } from "@/components/Tooltip";
-import { ADDONS } from "@/lib/addons";
 
 const isUpdatedToday = (dateStr: string) => {
   const today = new Date();
@@ -16,10 +15,19 @@ const isUpdatedToday = (dateStr: string) => {
   return date.toDateString() === today.toDateString();
 };
 
+type ReactionKey = "heart" | "fire" | "smile" | "poop";
+
+const reactionEmoji: Record<ReactionKey, string> = {
+  heart: "❤️",
+  fire: "🔥",
+  smile: "😍",
+  poop: "💩",
+};
+
 export function AddonCard({ addon, accent = "orange" }: { addon: Addon; accent?: "orange" | "lime" | "violet" }) {
   const { isFav, toggle } = useFavorites();
   const { react, getReactionCount } = useReactions();
-  const { addToComparison, removeFromComparison, isInComparison, ids } = useComparison();
+  const { addToComparison, removeFromComparison, isInComparison } = useComparison();
   const [tut, setTut] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const fav = isFav(addon.id);
@@ -45,7 +53,7 @@ export function AddonCard({ addon, accent = "orange" }: { addon: Addon; accent?:
     }
   };
 
-  const REACTIONS: Array<"heart" | "fire" | "smile" | "poop"> = ["heart", "fire", "smile", "poop"];
+  const REACTIONS: ReactionKey[] = ["heart", "fire", "smile", "poop"];
 
   return (
     <>
@@ -126,18 +134,18 @@ export function AddonCard({ addon, accent = "orange" }: { addon: Addon; accent?:
 
         <div className="px-3 pb-3 md:px-4 md:pb-4 flex flex-col gap-2">
           <div className="flex flex-wrap gap-1.5 justify-center">
-            {REACTIONS.map((emoji) => (
+            {REACTIONS.map((emojiKey) => (
               <button
-                key={emoji}
-                onClick={() => react(addon.id, emoji)}
+                key={emojiKey}
+                onClick={() => react(addon.id, emojiKey)}
                 className={`flex items-center gap-1 px-2 py-1 rounded border-2 border-ink text-xs transition shadow-[2px_2px_0_0_var(--ink)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] ${
-                  getReactionCount(addon.id, emoji) > 0 ? "bg-secondary" : "bg-paper hover:bg-secondary"
+                  getReactionCount(addon.id, emojiKey) > 0 ? "bg-secondary" : "bg-paper hover:bg-secondary"
                 }`}
-                title={`Reagir com ${emoji}`}
+                title={`Reagir com ${reactionEmoji[emojiKey]}`}
               >
-                <span className="text-sm leading-none">{emoji}</span>
-                {getReactionCount(addon.id, emoji) > 0 && (
-                  <span className="font-mono text-[10px] font-bold">{getReactionCount(addon.id, emoji)}</span>
+                <span className="text-sm leading-none">{reactionEmoji[emojiKey]}</span>
+                {getReactionCount(addon.id, emojiKey) > 0 && (
+                  <span className="font-mono text-[10px] font-bold">{getReactionCount(addon.id, emojiKey)}</span>
                 )}
               </button>
             ))}
@@ -202,8 +210,6 @@ export function AddonCard({ addon, accent = "orange" }: { addon: Addon; accent?:
       </article>
 
       {tut && addon.youtubeId && <YouTubeModal id={addon.youtubeId} onClose={() => setTut(false)} />}
-
-      {ids.length >= 2 && <ComparisonModal addons={ADDONS.filter(a => ids.includes(a.id))} onClose={() => {}} />}
     </>
   );
 }
