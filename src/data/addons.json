@@ -140,21 +140,5 @@
     "downloadUrl": "https://www.bedrockexplorer.com/@pickaxe-studios/morph-add-on-edition",
     "author": "Pickaxe Studios",
     "youtubeId": "9hMBnr3Mb3o"
-  },
-  {
-    "id": "actions",
-    "title": "Actions and Stuff",
-    "category": "Animação",
-    "version": "1.10",
-    "rating": 5,
-    "downloads": 0,
-    "date": "2026-05-09",
-    "image": "https://xforgeassets001.xboxlive.com/pf-namespace-b63a0803d3653643/77e46684-95a4-4e0d-86a8-15085545e85c/actionsandstuff_Thumbnail_0.jpg",
-    "tags": ["animação", "3d", "textura"],
-    "short": "Actions & Stuff é um pacote de recursos para Minecraft que vai muito além de simples texturas, adicionando animações e modelos 3D.",
-    "description": "O Pacote de Animação que Você Não Sabia Que Precisava: Dê vida ao seu mundo com novas animações, partículas, texturas e muito mais!\n\n- Animações do jogador (1ª e 3ª pessoa)\n- Novas e aprimoradas animações de mob\n- Modelos de itens 3D\n- Armadura Personalizada\n- Uma Revisão de Textura Completa e Fiel\n- Compatível com texturas de baunilha ou seus próprios pacotes de textura\n- Agora com 100% visuais mais vibrantes",
-    "downloadUrl": "https://1024terabox.com/s/1uGSeZACJ4TGKLk_ltR7ZCA",
-    "author": "Oreville Studios",
-    "youtubeId": "VDk8niB2Obw"
-  },
+  }
 ]
