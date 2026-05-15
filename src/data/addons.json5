@@ -1,0 +1,34 @@
+[
+  {
+    id: "actions-and-stuff",
+    title: "Actions and Stuff",
+    category: "Animação",
+    version: "1.10",
+    rating: 5,
+    downloads: 0,
+    date: "2026-05-09",
+    image: "https://xforgeassets001.xboxlive.com/pf-namespace-b63a0803d3653643/77e46684-95a4-4e0d-86a8-15085545e85c/actionsandstuff_Thumbnail_0.jpg",
+    tags: ["animação", "3d", "textura"],
+    short: "Actions & Stuff é um pacote de recursos...",
+    description: "Descrição completa...",
+    downloadUrl: "https://1024terabox.com/s/1uGSeZACJ4TGKLk_ltR7ZCA",
+    author: "Oreville Studios",
+    youtubeId: "VDk8niB2Obw"
+  },
+  {
+    id: "morph-test",
+    title: "Morph: Add-On Edition",
+    category: "Outros",
+    version: "1.00",
+    rating: 5,
+    downloads: 40301,
+    date: "2026-05-15",
+    image: "https://via.placeholder.com/400x200?text=Morph", // use uma imagem estável
+    tags: ["bedrock", "morph"],
+    short: "Pickaxe Studios presents: Morph!",
+    description: "Descrição...",
+    downloadUrl: "https://www.bedrockexplorer.com/@pickaxe-studios/morph-add-on-edition",
+    author: "Pickaxe Studios",
+    youtubeId: "" // remova o ID problemático
+  }
+]
