@@ -2,7 +2,7 @@ import { useMemo, useState, useRef, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Search, ArrowDown, Boxes, Tag, Calendar, Star, TrendingUp,
-  Filter, Sparkles, Flame, Zap, Heart, Mic, X, Clock, Loader2, Eye, User,
+  Filter, Sparkles, Flame, Zap, Heart, Mic, X, Clock, Loader2, Eye, User, Scale
 } from "lucide-react";
 import { ADDONS, type Addon } from "@/lib/addons";
 import { Header } from "@/components/Header";
@@ -24,10 +24,11 @@ import { useVoiceSearch } from "@/hooks/useVoiceSearch";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
-import { getTopDownloads, getRecentAddons } from "@/lib/stats";
+import { getTopDownloads, getRecentAddons as getRecentStats } from "@/lib/stats";
 import { Tooltip } from "@/components/Tooltip";
 import { useViewHistory } from "@/lib/viewHistory";
 import { useNewAddonNotification } from "@/lib/newAddonNotification";
+import { ComparisonModal } from "@/components/ComparisonModal"; // se não existir, comente esta linha e remova o modal
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -54,12 +55,14 @@ function Index() {
   const [sort, setSort] = useState<Sort>("recent");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [showHistory, setShowHistory] = useState(false);
+  const [ids, setIds] = useState<string[]>([]);
+  const [showCompareModal, setShowCompareModal] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const historyRef = useRef<HTMLDivElement>(null);
   const { isListening, startListening } = useVoiceSearch(setQ);
   const { history, add, remove, clear } = useSearchHistory();
-  const { getRecentAddons } = useViewHistory();
+  const { getRecentAddons: getRecentViewed } = useViewHistory();
   const { showNotification, updateLastVisit } = useNewAddonNotification();
 
   useKeyboardShortcuts({
@@ -119,7 +122,7 @@ function Index() {
   const accents: Array<"orange" | "lime" | "violet"> = ["orange", "lime", "violet"];
 
   const topDownloaded = getTopDownloads(3);
-  const recentOnes = getRecentAddons(1);
+  const recentOnes = getRecentStats(1); // ou getRecentStats(addons, 1) se a função pedir addons
 
   const { displayed, loaderRef, hasMore } = useInfiniteScroll(filtered, 12);
 
@@ -222,7 +225,7 @@ function Index() {
               <Clock className="size-5 text-orange" /> Vistos recentemente
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-              {getRecentAddons(addons).map((a) => (
+              {getRecentViewed(addons).map((a) => (
                 <Link
                   key={a.id}
                   to="/addon/$id"
@@ -439,7 +442,10 @@ function Index() {
         </div>
       </section>
 
-      <ComparisonModal addons={ADDONS.filter(a => ids.includes(a.id))} onClose={() => setShowCompareModal(false)} />
+      {/* ComparisonModal (comente se não existir) */}
+      {showCompareModal && (
+        <ComparisonModal addons={ADDONS.filter(a => ids.includes(a.id))} onClose={() => setShowCompareModal(false)} />
+      )}
       <Footer />
     </div>
   );
