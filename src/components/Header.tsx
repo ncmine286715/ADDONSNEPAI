@@ -88,7 +88,7 @@ export function Header() {
 
           <ThemeToggle />
           <a
-            href="https://discord.gg/7vHysxHrTr"
+            href="https://discord.gg"
             target="_blank"
             rel="noreferrer"
             className="size-10 rounded-md border-2 border-ink bg-paper grid place-items-center hover:bg-violet hover:text-paper transition shadow-[2px_2px_0_0_var(--ink)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px]"
