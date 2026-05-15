@@ -131,20 +131,4 @@
   "author": "Teste",
   "youtubeId": ""
 }
-  {
-  "id": "morph-test",
-  "title": "Morph Test",
-  "category": "Outros",
-  "version": "1.0",
-  "rating": 5,
-  "downloads": 100,
-  "date": "2026-05-15",
-  "image": "https://via.placeholder.com/400x200?text=Morph",
-  "tags": ["test"],
-  "short": "Teste do Morph",
-  "description": "Descrição de teste.",
-  "downloadUrl": "https://example.com",
-  "author": "Teste",
-  "youtubeId": ""
-}
 ]
