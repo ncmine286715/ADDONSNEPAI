@@ -10,7 +10,6 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "notify-discord": "tsx scripts/notify-discord.ts"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",
