@@ -1,7 +1,7 @@
 import { MessageCircle } from "lucide-react";
 
 // Substitua pelo ID do seu servidor Discord
-const DISCORD_SERVER_ID = "000000000000000000";
+const DISCORD_SERVER_ID = "7vHysxHrTr";
 
 export function DiscordWidget() {
   return (
